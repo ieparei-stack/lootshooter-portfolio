@@ -14,6 +14,7 @@ import { createCrosshair } from './ui/crosshair.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
 import { createSpread } from './weapon/spread.js';
+import { createAds } from './weapon/ads.js';
 import { createImpactMarks } from './weapon/impactMarks.js';
 import { createShooter } from './weapon/shooter.js';
 import weaponsJson from '../data/weapons.json';
@@ -35,14 +36,13 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// 테스트 공간 + 1인칭 카메라 + 입력 + 이동 + FOV + 조절 패널
+// 테스트 공간 + 1인칭 카메라 + 입력 + 이동 + 조절 패널
 const blocks = buildTestRoom(scene);
 const player = createPlayerCamera(camera, PLAYER_START);
 const mouseLook = createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));
 const keyboard = createKeyboard(mouseLook);
 const mouseButtons = createMouseButtons(mouseLook);
 const movement = createMovement(player, keyboard, blocks);
-const view = createView(camera, mouseButtons);
 createSettingsPanel();
 
 // 무기 데이터 — 값 오류는 화면 경고 + 기본값으로 진행
@@ -52,21 +52,24 @@ const weaponInfo = createWeaponInfo();
 const weapon = weapons[0];
 weaponInfo.set(weapon);
 
-// 반동 + 퍼짐 + 탄자국 + 발사 루프 + 조준선(원)
+// 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 발사 루프 + 조준선(원)
+const ads = createAds(weapon, mouseButtons);
+const view = createView(camera, ads);
 const recoil = createRecoil(weapon);
 const spread = createSpread(weapon);
 const marks = createImpactMarks(scene);
-const shooter = createShooter(weapon, recoil, spread, mouseButtons, { player, movement, blocks, marks });
+const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons, { player, movement, blocks, marks });
 const crosshair = createCrosshair();
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, spread, marks, shooter };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, spread, ads, marks, shooter };
 }
 
 startLoop((dt) => {
   const now = performance.now();
   movement.update(dt);
+  ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
   shooter.update(now, dt);
   player.state.offYaw = recoil.state.offYaw;
   player.state.offPitch = recoil.state.offPitch;

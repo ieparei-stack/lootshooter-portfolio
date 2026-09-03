@@ -1,13 +1,13 @@
 import { config } from '../config.js';
 
-// 카메라 FOV 적용. 매 프레임 목표 FOV(지향/정조준)를 정하고, 바뀐 프레임에만 카메라에 반영한다.
-// T06: 우클릭 유지 = 정조준 FOV 즉시 전환(미리보기). T11에서 ads.time 보간으로 대체된다.
-export function createView(camera, mouseButtons) {
-  const state = { fov: null, ads: false };
+// 카메라 FOV. 정조준 진행도(ads.state.ease)로 지향 FOV ↔ 정조준 FOV를 보간한다.
+// 바뀐 프레임에만 카메라를 갱신한다. (T06의 즉시 전환은 이것으로 대체 — 사용자 메모 1: 부드럽게)
+export function createView(camera, ads) {
+  const state = { fov: null };
 
   function update() {
-    state.ads = mouseButtons.isDown(2);
-    const target = state.ads ? config.render.adsFov : config.render.fov;
+    const hip = config.render.fov, aim = config.render.adsFov;
+    const target = hip + (aim - hip) * ads.state.ease;
     if (target !== state.fov) {
       state.fov = target;
       camera.fov = target;
