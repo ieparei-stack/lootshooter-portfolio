@@ -29,7 +29,7 @@ export function patternIndex(shotIdx, n) {
 }
 
 export function createRecoil(weapon, rng = Math.random) {
-  const compiled = compilePattern(weapon);
+  let compiled = compilePattern(weapon);
   const state = {
     offYaw: 0,        // 누적 수평 반동 (°, + = 오른쪽)
     offPitch: 0,      // 누적 수직 반동 (°, + = 위)
@@ -84,11 +84,14 @@ export function createRecoil(weapon, rng = Math.random) {
     if (!firing && state.shotIdx > 0 && nowMs - state.lastFireEnd > IDX_RESET_MS) state.shotIdx = 0;
   }
 
+  // 튜닝 패널(T17.5)이 pattern.*을 바꾼 뒤 부른다 — 패턴을 다시 펼친다
+  function recompile() { compiled = compilePattern(weapon); }
+
   // 무기 전환(T16): 누적 반동·패턴 인덱스를 처음 상태로
   function reset() {
     state.offYaw = 0; state.offPitch = 0; state.shotIdx = 0;
     state.capHold = false; state.lastIdx = -1;
   }
 
-  return { state, compiled, fire, update, reset };
+  return { state, get compiled() { return compiled; }, fire, update, reset, recompile };
 }

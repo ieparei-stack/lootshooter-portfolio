@@ -80,10 +80,10 @@ const SCHEMA = [
 
 const ARRAY_SHOT_DEFAULT = [0.2, 0];
 
-function getPath(obj, path) {
+export function getPath(obj, path) {
   return path.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), obj);
 }
-function setPath(obj, path, value) {
+export function setPath(obj, path, value) {
   const keys = path.split('.');
   let o = obj;
   for (let i = 0; i < keys.length - 1; i++) {
@@ -144,6 +144,9 @@ function normalizeWeapon(raw, label, warnings) {
   }
   return w;
 }
+
+// 깊은 복사 (튜닝 패널이 파일 값 보관·JSON 출력에 쓴다)
+export function cloneWeapon(w) { return JSON.parse(JSON.stringify(w)); }
 
 // 파일 전체(JSON 객체)를 받아 { weapons, warnings }를 돌려준다.
 export function loadWeapons(rawJson) {

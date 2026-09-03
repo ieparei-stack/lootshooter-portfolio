@@ -14,6 +14,7 @@ import { createWeaponInfo } from './ui/weaponInfo.js';
 import { createCrosshair } from './ui/crosshair.js';
 import { createHitmarker } from './ui/hitmarker.js';
 import { createDamageNumbers } from './ui/damageNumbers.js';
+import { createTuningPanel, restoreTuning } from './ui/tuningPanel.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
 import { createSpread } from './weapon/spread.js';
@@ -54,6 +55,8 @@ createSettingsPanel();
 // 무기 데이터 — 값 오류는 화면 경고 + 기본값으로 진행
 const { weapons, warnings } = loadWeapons(weaponsJson);
 showWarnings(warnings);
+// 튜닝 패널(T17.5): 파일 값을 보관하고, 저장된 튜닝이 있으면 kit을 만들기 전에 weapon에 덮어쓴다
+const tuning = restoreTuning(weapons);
 const weaponInfo = createWeaponInfo();
 
 // 탄자국 + 명중 피드백 + 조준선(원) — 무기와 무관한 공용 요소
@@ -79,9 +82,14 @@ function makeKit(weapon) {
     { player, movement, blocks, marks, targets, onFire });
   return { weapon, ads, recoil, spread, shooter };
 }
+const tuningPanel = createTuningPanel({
+  weapons, origs: tuning.origs, arrMuls: tuning.arrMuls,
+  onChange: (w) => { weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
+});
 const loadout = createLoadout(weapons, makeKit, (kit, i) => {
   weaponInfo.set(kit.weapon);
   weaponInfo.setLineup(weapons, i);
+  tuningPanel.show(kit, i);
 });
 const view = createView(camera, () => loadout.current().ads);
 const crosshair = createCrosshair();
@@ -93,7 +101,7 @@ keyboard.onPress('KeyR', () => { const k = loadout.current(); k.shooter.startRel
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, marks, targets, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, marks, targets, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -108,7 +116,7 @@ startLoop((dt) => {
   player.state.offPitch = recoil.state.offPitch;
   player.apply();
   view.update();
-  damageNumbers.update(dt, camera);
+  damageNumbers.update(dt);
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   renderer.render(scene, camera);
