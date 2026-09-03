@@ -1,16 +1,21 @@
 import * as THREE from 'three';
 import { computeDamage } from '../weapon/damage.js';
+import { textTexture } from './range.js';
 
-// 2단계 사격 연습 표적 (코드에 정의 — 데이터 파일은 무기만).
+// 사격장 표적 (코드에 정의 — 데이터 파일은 무기만).
 //   human: 몸통 박스 0.5×1.4×0.3 (y 0~1.4) + 머리 박스 0.3³ (y 1.4~1.7). HP 3000.
 //          HP 0 → 뒤로 쓰러졌다가 3초 뒤 다시 선다. 쓰러진 동안은 맞지 않는다.
-//   paper: 1.2m 정사각 세로 과녁판. 피해 없음, 탄자국만 남긴다.
-// 배치는 시작 위치 (0, 10) 기준 5 / 10 / 20m. x를 엇갈리게 둔 것은 앞의 낮은 엄폐물·상자에 시선이 가리지 않게 하기 위함.
+//   paper: 1.2m 정사각 세로 과녁판. 피해 없음, 탄자국만 남긴다. label이 있으면 판 위에 거리 표지판.
+// 배치 (T17, 사용자 결정): 사격 라인 (0, 0) 기준 10 / 25 / 50m, 거리마다 과녁판(오른쪽) + 인간형(왼쪽).
+// 먼 표적일수록 안쪽(x 작게)에 두어 앞 표적이 뒤 표적을 가리지 않는다 — 시작점에서 본 수평 각도 범위가
+// 10m 19~25°, 25m 4~7°, 50m 0~1.5°로 서로 겹치지 않음 (레이캐스트 테스트로 확인).
 export const TARGET_DEFS = [
-  { id: 'human-5m',  kind: 'human', pos: [0.5, 0, 5],    hp: 3000 },
-  { id: 'human-10m', kind: 'human', pos: [3, 0, 0],      hp: 3000 },
-  { id: 'human-20m', kind: 'human', pos: [-4.5, 0, -10], hp: 3000 },   // 거리 20.5m. 다른 x는 낮은 엄폐물·상자·5m 표적에 가려짐 (테스트로 확인)
-  { id: 'paper-15m', kind: 'paper', pos: [5, 1.5, -5] },
+  { id: 'paper-10m', kind: 'paper', pos: [4, 1.5, -10],    label: '10m' },
+  { id: 'human-10m', kind: 'human', pos: [-4, 0, -10],     hp: 3000 },
+  { id: 'paper-25m', kind: 'paper', pos: [2.5, 1.5, -25],  label: '25m' },
+  { id: 'human-25m', kind: 'human', pos: [-2.5, 0, -25],   hp: 3000 },
+  { id: 'paper-50m', kind: 'paper', pos: [0.7, 1.5, -50],  label: '50m' },
+  { id: 'human-50m', kind: 'human', pos: [-0.7, 0, -50],   hp: 3000 },
 ];
 
 const BODY = { w: 0.5, h: 1.4, d: 0.3 };
@@ -78,6 +83,16 @@ export function createTargets(scene) {
       const mat = tex ? new THREE.MeshLambertMaterial({ map: tex }) : new THREE.MeshLambertMaterial({ color: 0xf4f1e8 });
       const plane = new THREE.Mesh(new THREE.BoxGeometry(PAPER.size, PAPER.size, PAPER.thick), mat);
       group.add(plane);
+      if (def.label) {   // 판 위 거리 표지판 (T17). 먼 표적일수록 크게 — 50m에서도 읽히게
+        const s = def.pos[2] <= -50 ? 2.0 : def.pos[2] <= -25 ? 1.4 : 1.0;
+        const signTex = textTexture(def.label, { bg: '#2b2b2b' });
+        const sign = new THREE.Mesh(
+          new THREE.PlaneGeometry(s, s / 4),
+          signTex ? new THREE.MeshBasicMaterial({ map: signTex }) : new THREE.MeshBasicMaterial({ color: 0x2b2b2b }),
+        );
+        sign.position.y = PAPER.size / 2 + s / 8 + 0.1;
+        group.add(sign);
+      }
       targets.push({
         id: def.id, kind: 'paper', def, group, hpMax: 0, hp: 0, down: false,
         colliders: [

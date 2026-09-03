@@ -9,7 +9,7 @@ export const config = {
     maxPixelRatio: 2,
   },
   ground: {
-    size: 60,                   // 한 변 길이 (m)
+    size: 120,                  // 한 변 길이 (m). 사격장 z −55까지 덮는다 (T17)
     color: 0x8a8a8a,            // 회색
   },
   player: {

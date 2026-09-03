@@ -5,7 +5,8 @@ import { directionFromAngles, raycastWorld } from './raycast.js';
 //   좌클릭 유지 → rpm 간격으로 한 발씩: 반동(× ADS 배율) → 퍼짐 샘플(× ADS × 이동 배율) → 레이캐스트
 //   → 표적이면 피해 적용(targets.applyHit), 벽·과녁판이면 탄자국
 //   탄창 mag 소모, 예비탄 무한. R 또는 빈 탄창에서 사격 입력 시 재장전(reloadTime).
-//   재장전 취소: 질주 / 정조준(우클릭 새로 누름) / 탄이 남은 채 사격 입력 / 무기 전환(T16, loadout.js가 cancelReload 호출).
+//   재장전 취소: 질주 / 무기 전환(T16, loadout.js가 cancelReload 호출) / 탄이 남은 재장전에 한해 정조준(우클릭 새로 누름)·사격 입력.
+//   0발에서 시작한 재장전은 좌클릭·우클릭으로 끊기지 않는다 (사용자 결정 2026-09-03) — 질주만 끊는다.
 //   R 키 등록은 main.js가 맡는다 — 무기마다 shooter가 한 벌씩 있어 여기서 등록하면 서로 덮어쓴다.
 //   질주 중 사격 불가 — 사격 버튼을 누르면 질주가 풀리고 같은 프레임에 바로 발사.
 //   복귀·퍼짐 회복에는 "실제로 발사 가능한 상태로 버튼을 잡고 있는가"를 넘긴다 (시뮬레이터 !firing || ammo<=0).
@@ -81,7 +82,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     const sprinting = movement.state.sprinting;
 
     // 재장전 취소 / 완료 / 진행도
-    if (state.reloading && (sprinting || rmbPressed || (lmb && state.mag > 0))) cancelReload();
+    if (state.reloading && (sprinting || (state.mag > 0 && (rmbPressed || lmb)))) cancelReload();
     if (state.reloading && nowMs >= state.reloadEnd) { state.mag = weapon.mag; cancelReload(); }
     if (state.reloading) {
       state.reloadProgress = Math.min(1, (nowMs - state.reloadStart) / (state.reloadEnd - state.reloadStart));
