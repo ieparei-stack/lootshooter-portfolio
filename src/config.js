@@ -20,6 +20,7 @@ export const config = {
     accelTime: 0.08,            // 정지→최고속도 도달 시간 (초, 임시 수치)
     decelTime: 0.10,            // 최고속도→정지 시간 (초, 임시 수치)
     crouchBlendTime: 0.12,      // 눈높이 1.7↔1.0 전환 시간 (초, 임시 수치)
+    radius: 0.35,               // 충돌 반지름 (m, 임시 수치)
   },
   mouse: {
     sensitivity: 8.0,           // °/100px (SPEC 확정, 시뮬레이터와 동일 단위)

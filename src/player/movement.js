@@ -1,10 +1,12 @@
 import { config } from '../config.js';
+import { resolveCircleVsBlocks } from './collision.js';
 
 const DEG = Math.PI / 180;
 
 // 플레이어 이동. 카메라 yaw 기준으로 WASD를 해석해 playerCamera.state.x/z와 eyeHeight를 갱신한다.
+// blocks(testRoom.js BLOCKS 형식)와 충돌하면 밀어내고 벽 방향 속도를 없애 벽을 따라 미끄러진다.
 // state.speed(m/s)·sprinting·crouched는 2단계(이동 퍼짐, 질주 중 사격 불가)가 읽는다.
-export function createMovement(playerCamera, keyboard) {
+export function createMovement(playerCamera, keyboard, blocks = []) {
   const cam = playerCamera.state;
   const state = {
     vx: 0, vz: 0,        // 현재 속도 벡터 (m/s)
@@ -47,11 +49,16 @@ export function createMovement(playerCamera, keyboard) {
     const step = rate * dt;
     if (elen === 0 || elen <= step) { state.vx = tx; state.vz = tz; }   // elen 0이면 0÷0 방지
     else { state.vx += ex / elen * step; state.vz += ez / elen * step; }
-    state.speed = Math.hypot(state.vx, state.vz);
 
-    // 5. 위치
+    // 5. 위치 + 충돌. 밀어낸 뒤, 벽 안쪽으로 향하는 속도 성분만 지운다 → 벽과 평행한 속도는 남아 미끄러진다
     cam.x += state.vx * dt;
     cam.z += state.vz * dt;
+    const normals = resolveCircleVsBlocks(cam, P.radius, blocks);
+    for (const n of normals) {
+      const into = state.vx * n.x + state.vz * n.z;
+      if (into < 0) { state.vx -= n.x * into; state.vz -= n.z * into; }
+    }
+    state.speed = Math.hypot(state.vx, state.vz);
 
     // 6. 눈높이 — 서기/웅크리기 목표를 향해 일정 속도로 전환
     const eyeTarget = state.crouched ? P.crouchEyeHeight : P.eyeHeight;

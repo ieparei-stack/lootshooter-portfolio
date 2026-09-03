@@ -26,11 +26,11 @@ ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 // 테스트 공간 + 1인칭 카메라 + 입력 + 이동 + 조절 패널
-buildTestRoom(scene);
+const blocks = buildTestRoom(scene);
 const player = createPlayerCamera(camera, PLAYER_START);
 const mouseLook = createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));
 const keyboard = createKeyboard(mouseLook);
-const movement = createMovement(player, keyboard);
+const movement = createMovement(player, keyboard, blocks);
 createSettingsPanel();
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
