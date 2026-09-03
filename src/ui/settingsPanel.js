@@ -16,7 +16,7 @@ export function createSettingsPanel() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'opacity:0.7;margin-bottom:6px';
-  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준';
+  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전';
   root.appendChild(hint);
 
   // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다.

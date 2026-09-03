@@ -13,7 +13,14 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
     speed: 0,            // 현재 속력 (m/s)
     sprinting: false,
     crouched: false,
+    sprintBlocked: false, // 사격으로 질주가 풀린 상태. Shift를 뗄 때까지 유지 (T12)
   };
+
+  // 사격 버튼이 눌리면 질주를 풀고, Shift를 뗐다 다시 누를 때까지 질주로 돌아가지 않게 한다
+  function blockSprint() {
+    state.sprintBlocked = true;
+    state.sprinting = false;
+  }
 
   keyboard.onPress('KeyC', () => { state.crouched = !state.crouched; });
 
@@ -34,7 +41,8 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
 
     // 2. 질주 — Shift + 앞으로 갈 때만. 질주하면 웅크리기가 풀린다
     const shift = keyboard.isDown(['ShiftLeft', 'ShiftRight']);
-    state.sprinting = shift && fwdIn > 0;
+    if (!shift) state.sprintBlocked = false;
+    state.sprinting = shift && fwdIn > 0 && !state.sprintBlocked;
     if (state.sprinting) state.crouched = false;
 
     // 3. 목표 속도
@@ -68,5 +76,5 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
     else cam.eyeHeight += Math.sign(de) * eyeStep;
   }
 
-  return { state, update };
+  return { state, update, blockSprint };
 }

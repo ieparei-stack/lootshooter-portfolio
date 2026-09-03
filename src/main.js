@@ -52,13 +52,13 @@ const weaponInfo = createWeaponInfo();
 const weapon = weapons[0];
 weaponInfo.set(weapon);
 
-// 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 발사 루프 + 조준선(원)
+// 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 발사·탄약·재장전 + 조준선(원)
 const ads = createAds(weapon, mouseButtons);
 const view = createView(camera, ads);
 const recoil = createRecoil(weapon);
 const spread = createSpread(weapon);
 const marks = createImpactMarks(scene);
-const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons, { player, movement, blocks, marks });
+const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard, { player, movement, blocks, marks });
 const crosshair = createCrosshair();
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
@@ -76,5 +76,6 @@ startLoop((dt) => {
   player.apply();
   view.update();
   crosshair.set(shooter.state.currentSpread, view.state.fov);
+  weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   renderer.render(scene, camera);
 });

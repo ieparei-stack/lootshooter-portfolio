@@ -1,4 +1,4 @@
-// 현재 무기 표시 (오른쪽 아래). T07: 이름과 주요 수치. T12에서 탄약 카운터가 붙는다.
+// 현재 무기 표시 (오른쪽 아래). 탄약 카운터 + 재장전 진행 바 + 이름 + 주요 수치.
 export function createWeaponInfo() {
   const root = document.createElement('div');
   root.id = 'weaponInfo';
@@ -9,10 +9,21 @@ export function createWeaponInfo() {
   ].join(';');
   document.body.appendChild(root);
 
+  // 탄약 카운터 (T12)
+  const ammo = document.createElement('div');
+  ammo.style.cssText = 'font-size:30px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'height:4px;margin:4px 0 8px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden';
+  const fill = document.createElement('div');
+  fill.style.cssText = 'height:100%;width:0%;background:#7cc4ff';
+  bar.appendChild(fill);
+
   const name = document.createElement('div');
   name.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:4px';
   const stats = document.createElement('div');
   stats.style.cssText = 'opacity:0.85;white-space:pre';
+  root.appendChild(ammo);
+  root.appendChild(bar);
   root.appendChild(name);
   root.appendChild(stats);
 
@@ -33,5 +44,18 @@ export function createWeaponInfo() {
     ].join('\n');
   }
 
-  return { root, set };
+  let lastText = '', lastW = -1;
+  // mag: 현재 탄, magSize: 탄창, progress: 재장전 진행도 0~1 또는 null
+  function setAmmo(mag, magSize, progress) {
+    const text = progress === null ? `${mag} / ${magSize}` : `재장전…  ${mag} / ${magSize}`;
+    if (text !== lastText) {
+      lastText = text;
+      ammo.textContent = text;
+      ammo.style.color = mag === 0 ? '#ff6b6b' : '#eee';
+    }
+    const w = progress === null ? 0 : Math.round(progress * 100);
+    if (w !== lastW) { lastW = w; fill.style.width = w + '%'; }
+  }
+
+  return { root, set, setAmmo };
 }
