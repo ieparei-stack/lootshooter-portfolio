@@ -14,4 +14,11 @@ export const config = {
   player: {
     eyeHeight: 1.7,             // 서있을 때 눈높이 (SPEC 확정). 웅크리기 1.0은 T04에서 추가
   },
+  mouse: {
+    sensitivity: 8.0,           // °/100px (SPEC 확정, 시뮬레이터와 동일 단위)
+    sensitivityMin: 1,          // 슬라이더 범위 (SPEC 확정)
+    sensitivityMax: 30,
+    sensitivityStep: 0.5,
+    pitchLimit: 89,             // 위아래 최대 각도 (임시 수치)
+  },
 };

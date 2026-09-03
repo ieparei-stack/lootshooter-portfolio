@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { config } from './config.js';
 import { createRenderer } from './core/renderer.js';
 import { startLoop } from './core/loop.js';
+import { createMouseLook } from './core/input.js';
 import { buildTestRoom, PLAYER_START } from './stage/testRoom.js';
 import { createPlayerCamera } from './player/camera.js';
+import { createSettingsPanel } from './ui/settingsPanel.js';
 
 const canvas = document.getElementById('app');
 const { renderer, scene, camera } = createRenderer(canvas);
@@ -22,10 +24,16 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// 테스트 공간 + 1인칭 카메라
+// 테스트 공간 + 1인칭 카메라 + 마우스 룩 + 조절 패널
 buildTestRoom(scene);
-createPlayerCamera(camera, PLAYER_START);
+const player = createPlayerCamera(camera, PLAYER_START);
+createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));
+createSettingsPanel();
+
+// 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
+if (import.meta.env.DEV) window.__debug = { player, config };
 
 startLoop(() => {
+  player.apply();
   renderer.render(scene, camera);
 });
