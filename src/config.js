@@ -2,6 +2,7 @@
 export const config = {
   render: {
     fov: 90,                    // 지향 FOV (SPEC 확정)
+    adsFov: 59,                 // 정조준 FOV — TBD #2. 초기값은 시뮬레이터 1.77배 환산값, 사용자가 슬라이더로 확정
     near: 0.1,
     far: 500,
     backgroundColor: 0x9fc3e0,  // 하늘색

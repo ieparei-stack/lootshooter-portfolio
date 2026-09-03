@@ -16,7 +16,7 @@ export function createSettingsPanel() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'opacity:0.7;margin-bottom:6px';
-  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절)';
+  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 우클릭 유지: 정조준 FOV 미리보기';
   root.appendChild(hint);
 
   // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다.
@@ -58,6 +58,19 @@ export function createSettingsPanel() {
     set: (v) => { config.mouse.sensitivity = v; },
     format: (v) => v.toFixed(1),
   });
+
+  // T06: 이동·FOV 조절. 범위는 UI 한계(임시). 값은 config에 바로 쓰이고 다음 프레임부터 반영된다.
+  const P = config.player, R = config.render;
+  addSlider({ label: '걷기 속도 (m/s)', min: 3, max: 9, step: 0.1,
+    get: () => P.walkSpeed, set: (v) => { P.walkSpeed = v; }, format: (v) => v.toFixed(1) });
+  addSlider({ label: '질주 배율', min: 1.0, max: 2.5, step: 0.05,
+    get: () => P.sprintMul, set: (v) => { P.sprintMul = v; }, format: (v) => '×' + v.toFixed(2) });
+  addSlider({ label: '웅크리기 배율', min: 0.2, max: 1.0, step: 0.05,
+    get: () => P.crouchMul, set: (v) => { P.crouchMul = v; }, format: (v) => '×' + v.toFixed(2) });
+  addSlider({ label: '지향 FOV (°)', min: 60, max: 120, step: 1,
+    get: () => R.fov, set: (v) => { R.fov = v; }, format: (v) => String(v) });
+  addSlider({ label: '정조준 FOV (°)', min: 30, max: 90, step: 1,
+    get: () => R.adsFov, set: (v) => { R.adsFov = v; }, format: (v) => String(v) });
 
   return { root, addSlider };
 }

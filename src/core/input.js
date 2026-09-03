@@ -60,3 +60,25 @@ export function createKeyboard(mouseLook) {
 
   return { isDown, onPress };
 }
+
+// 마우스 버튼 눌림 상태 (0 = 좌, 2 = 우). 포인터 락 중에만 받고, 풀리면 초기화.
+// T06: 우클릭 유지 = 정조준 FOV 미리보기. T11 ADS, T12 사격이 그대로 쓴다.
+export function createMouseButtons(mouseLook) {
+  const down = new Set();
+
+  document.addEventListener('mousedown', (e) => {
+    if (!mouseLook.isLocked()) return;
+    down.add(e.button);
+  });
+  document.addEventListener('mouseup', (e) => {
+    down.delete(e.button);
+  });
+  document.addEventListener('contextmenu', (e) => {
+    if (mouseLook.isLocked()) e.preventDefault();
+  });
+  document.addEventListener('pointerlockchange', () => {
+    if (!mouseLook.isLocked()) down.clear();
+  });
+
+  return { isDown: (button) => down.has(button) };
+}
