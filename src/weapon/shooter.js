@@ -9,7 +9,7 @@ import { directionFromAngles, raycastWorld } from './raycast.js';
 //   질주 중 사격 불가 — 사격 버튼을 누르면 질주가 풀리고 같은 프레임에 바로 발사.
 //   복귀·퍼짐 회복에는 "실제로 발사 가능한 상태로 버튼을 잡고 있는가"를 넘긴다 (시뮬레이터 !firing || ammo<=0).
 export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard, deps) {
-  const { player, movement, blocks, marks, targets } = deps;
+  const { player, movement, blocks, marks, targets, onFire } = deps;
   const state = {
     firing: false, lastShot: -Infinity, shots: 0,
     currentSpread: 0,   // 조준선 표시용 (°)
@@ -51,8 +51,9 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboar
     const pitch = aimPitch + s.dPitch;
 
     const origin = { x: player.state.x, y: player.state.eyeHeight, z: player.state.z };
+    const dir = directionFromAngles(yaw, pitch);
     const colliders = targets ? targets.colliders() : [];
-    const hit = raycastWorld(origin, directionFromAngles(yaw, pitch), blocks, 500, colliders);
+    const hit = raycastWorld(origin, dir, blocks, 500, colliders);
     if (hit) {
       if (hit.part && targets) {
         hit.result = targets.applyHit(hit, weapon);
@@ -62,6 +63,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboar
       }
     }
     state.lastHit = hit;
+    if (onFire) onFire({ origin, dir, yaw, pitch, hit });   // 트레이서·히트마커·데미지 숫자 (T14)
 
     spread.onShot();
     return { spread: sp, sample: s, hit };

@@ -12,11 +12,14 @@ import { createSettingsPanel } from './ui/settingsPanel.js';
 import { showWarnings } from './ui/warnings.js';
 import { createWeaponInfo } from './ui/weaponInfo.js';
 import { createCrosshair } from './ui/crosshair.js';
+import { createHitmarker } from './ui/hitmarker.js';
+import { createDamageNumbers } from './ui/damageNumbers.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
 import { createSpread } from './weapon/spread.js';
 import { createAds } from './weapon/ads.js';
 import { createImpactMarks } from './weapon/impactMarks.js';
+import { createTracers, muzzlePosition } from './weapon/tracers.js';
 import { createShooter } from './weapon/shooter.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -54,18 +57,31 @@ const weaponInfo = createWeaponInfo();
 const weapon = weapons[0];
 weaponInfo.set(weapon);
 
-// 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 발사·탄약·재장전·판정 + 조준선(원)
+// 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 명중 피드백 + 발사·탄약·재장전·판정 + 조준선(원)
 const ads = createAds(weapon, mouseButtons);
 const view = createView(camera, ads);
 const recoil = createRecoil(weapon);
 const spread = createSpread(weapon);
 const marks = createImpactMarks(scene);
-const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard, { player, movement, blocks, marks, targets });
+const tracers = createTracers(scene);
+const hitmarker = createHitmarker();
+const damageNumbers = createDamageNumbers();
+
+function onFire({ origin, dir, yaw, pitch, hit }) {
+  tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
+  if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
+    hitmarker.show(hit.part);
+    damageNumbers.add(hit.point, hit.result.damage, hit.part);
+  }
+}
+
+const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard,
+  { player, movement, blocks, marks, targets, onFire });
 const crosshair = createCrosshair();
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, spread, ads, marks, shooter, targets };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, spread, ads, marks, shooter, targets, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -74,10 +90,12 @@ startLoop((dt) => {
   ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
   shooter.update(now, dt);
   targets.update(dt, camera);
+  tracers.update(dt);
   player.state.offYaw = recoil.state.offYaw;
   player.state.offPitch = recoil.state.offPitch;
   player.apply();
   view.update();
+  damageNumbers.update(dt, camera);
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   renderer.render(scene, camera);
