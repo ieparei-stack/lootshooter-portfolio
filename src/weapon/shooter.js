@@ -1,18 +1,19 @@
 import { config } from '../config.js';
 import { directionFromAngles, raycastWorld } from './raycast.js';
 
-// 발사 루프 + 탄약 + 재장전.
-//   좌클릭 유지 → rpm 간격으로 한 발씩: 반동(× ADS 배율) → 퍼짐 샘플(× ADS × 이동 배율) → 레이캐스트 → 탄자국
+// 발사 루프 + 탄약 + 재장전 + 판정.
+//   좌클릭 유지 → rpm 간격으로 한 발씩: 반동(× ADS 배율) → 퍼짐 샘플(× ADS × 이동 배율) → 레이캐스트
+//   → 표적이면 피해 적용(targets.applyHit), 벽·과녁판이면 탄자국
 //   탄창 mag 소모, 예비탄 무한. R 또는 빈 탄창에서 사격 입력 시 재장전(reloadTime).
 //   재장전 취소: 질주 / 정조준(우클릭 새로 누름) / 탄이 남은 채 사격 입력. (무기 교체는 T16)
 //   질주 중 사격 불가 — 사격 버튼을 누르면 질주가 풀리고 같은 프레임에 바로 발사.
 //   복귀·퍼짐 회복에는 "실제로 발사 가능한 상태로 버튼을 잡고 있는가"를 넘긴다 (시뮬레이터 !firing || ammo<=0).
 export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard, deps) {
-  const { player, movement, blocks, marks } = deps;
+  const { player, movement, blocks, marks, targets } = deps;
   const state = {
     firing: false, lastShot: -Infinity, shots: 0,
     currentSpread: 0,   // 조준선 표시용 (°)
-    lastHit: null,      // 마지막 탄착 { point, normal, distance, target }
+    lastHit: null,      // 마지막 탄착 { point, normal, distance, target, part?, result? }
     mag: weapon.mag,    // 현재 탄
     reloading: false, reloadStart: 0, reloadEnd: 0,
     reloadProgress: null,   // 0~1, 재장전 중이 아니면 null
@@ -50,8 +51,16 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboar
     const pitch = aimPitch + s.dPitch;
 
     const origin = { x: player.state.x, y: player.state.eyeHeight, z: player.state.z };
-    const hit = raycastWorld(origin, directionFromAngles(yaw, pitch), blocks, 500);
-    if (hit) marks.add(hit.point, hit.normal);
+    const colliders = targets ? targets.colliders() : [];
+    const hit = raycastWorld(origin, directionFromAngles(yaw, pitch), blocks, 500, colliders);
+    if (hit) {
+      if (hit.part && targets) {
+        hit.result = targets.applyHit(hit, weapon);
+        if (hit.part === 'paper') marks.add(hit.point, hit.normal);   // 사람 표적에는 자국을 남기지 않는다(쓰러지면 허공에 뜸)
+      } else {
+        marks.add(hit.point, hit.normal);
+      }
+    }
     state.lastHit = hit;
 
     spread.onShot();

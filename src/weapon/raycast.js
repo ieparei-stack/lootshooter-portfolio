@@ -1,4 +1,4 @@
-// 시선 방향 레이캐스트 — 벽·상자(testRoom.js BLOCKS 형식)와 바닥(y=0)만. T13이 표적 판정을 얹는다.
+// 시선 방향 레이캐스트 — 벽·상자(testRoom.js BLOCKS 형식), 바닥(y=0), 그리고 표적 콜라이더.
 const DEG = Math.PI / 180;
 
 // 카메라 규약: yaw > 0 = 왼쪽, 0 = -Z 방향. pitch > 0 = 위. 단위 벡터를 돌려준다.
@@ -9,7 +9,7 @@ export function directionFromAngles(yawDeg, pitchDeg) {
 }
 
 // 레이 대 AABB(slab). 맞으면 { t, normal } 아니면 null.
-function rayBox(o, d, min, max) {
+export function rayBox(o, d, min, max) {
   let tmin = -Infinity, tmax = Infinity, axis = -1, sign = 0;
   const oa = [o.x, o.y, o.z], da = [d.x, d.y, d.z];
   for (let i = 0; i < 3; i++) {
@@ -32,14 +32,23 @@ function rayBox(o, d, min, max) {
   return { t: tmin, normal };
 }
 
-// 가장 가까운 충돌. { point, normal, distance, target: block | 'ground' } 또는 null.
-export function raycastWorld(origin, dir, blocks, maxDist = 500) {
+// 가장 가까운 충돌.
+//   { point, normal, distance, target: block | 'ground' }            — 벽·상자·바닥
+//   { point, normal, distance, target: 표적, part: 'body'|'head'|'paper' } — 표적 콜라이더 { min, max, part, target }
+// 또는 null.
+export function raycastWorld(origin, dir, blocks, maxDist = 500, colliders = []) {
   let best = null;
   for (const b of blocks) {
     const min = [b.pos[0] - b.size[0] / 2, b.pos[1], b.pos[2] - b.size[2] / 2];
     const max = [b.pos[0] + b.size[0] / 2, b.pos[1] + b.size[1], b.pos[2] + b.size[2] / 2];
     const h = rayBox(origin, dir, min, max);
     if (h && h.t <= maxDist && (!best || h.t < best.distance)) best = { distance: h.t, normal: h.normal, target: b };
+  }
+  for (const c of colliders) {
+    const h = rayBox(origin, dir, c.min, c.max);
+    if (h && h.t <= maxDist && (!best || h.t < best.distance)) {
+      best = { distance: h.t, normal: h.normal, target: c.target, part: c.part };
+    }
   }
   if (dir.y < -1e-9) {
     const t = -origin.y / dir.y;
