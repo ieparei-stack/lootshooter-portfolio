@@ -11,4 +11,7 @@ export const config = {
     size: 60,                   // 한 변 길이 (m)
     color: 0x8a8a8a,            // 회색
   },
+  player: {
+    eyeHeight: 1.7,             // 서있을 때 눈높이 (SPEC 확정). 웅크리기 1.0은 T04에서 추가
+  },
 };

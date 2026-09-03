@@ -2,16 +2,17 @@ import * as THREE from 'three';
 import { config } from './config.js';
 import { createRenderer } from './core/renderer.js';
 import { startLoop } from './core/loop.js';
+import { buildTestRoom, PLAYER_START } from './stage/testRoom.js';
+import { createPlayerCamera } from './player/camera.js';
 
 const canvas = document.getElementById('app');
 const { renderer, scene, camera } = createRenderer(canvas);
 
-// 임시 카메라 배치 — T02에서 1인칭 눈높이로 교체된다.
-camera.position.set(0, 6, 12);
-camera.lookAt(0, 0, 0);
-
-// 바닥이 회색으로 보일 정도의 최소 조명
-scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.6));
+// 조명 — 반구광(전체 밝기) + 방향광(박스 면 구분). 그림자 없음.
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8c8c8c, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(6, 12, 20);   // 플레이어 뒤쪽 위에서 앞벽을 비춘다
+scene.add(sun);
 
 // 회색 바닥
 const ground = new THREE.Mesh(
@@ -20,6 +21,10 @@ const ground = new THREE.Mesh(
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
+
+// 테스트 공간 + 1인칭 카메라
+buildTestRoom(scene);
+createPlayerCamera(camera, PLAYER_START);
 
 startLoop(() => {
   renderer.render(scene, camera);
