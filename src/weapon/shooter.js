@@ -3,14 +3,14 @@
 export function createShooter(weapon, recoil, mouseButtons) {
   const state = { firing: false, lastShot: -Infinity, shots: 0 };
 
-  function update(nowMs) {
+  function update(nowMs, dtSec) {
     state.firing = mouseButtons.isDown(0);
     if (state.firing && nowMs - state.lastShot >= 60000 / weapon.rpm) {
       state.lastShot = nowMs;
       state.shots++;
       recoil.fire(nowMs, 1);
     }
-    recoil.update(nowMs, state.firing);
+    recoil.update(nowMs, state.firing, dtSec);
   }
 
   return { state, update };

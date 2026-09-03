@@ -65,9 +65,22 @@ export function createRecoil(weapon, rng = Math.random) {
     return { v, h, idx };
   }
 
-  // 매 프레임. 사격을 멈추고 500ms가 지나면 패턴 인덱스를 처음으로 되돌린다.
-  // (복귀 감쇠는 T09에서 여기에 추가된다)
-  function update(nowMs, firing) {
+  // 매 프레임.
+  // 1) 복귀: 사격을 멈추고 recovery.delay(ms)가 지나면 누적 반동 벡터의 크기를 recovery.speed(°/s)로
+  //    선형 감소시킨다 (방향 유지). off만 줄이므로 플레이어가 마우스로 내린 조준각은 되돌아오지 않는다 = "보정분 제외".
+  // 2) 사격을 멈추고 500ms가 지나면 패턴 인덱스를 처음으로 되돌린다.
+  // 시뮬레이터 update()와 동일. firing은 "사격 버튼을 누르고 있는가" (T12에서 빈 탄창이면 firing이어도 복귀).
+  function update(nowMs, firing, dtSec = 0) {
+    if (!firing && nowMs - state.lastFireEnd > weapon.recovery.delay) {
+      const step = weapon.recovery.speed * dtSec;
+      const m = Math.hypot(state.offYaw, state.offPitch);
+      if (m > 0) {
+        const k = Math.max(0, m - step) / m;
+        state.offYaw *= k;
+        state.offPitch *= k;
+      }
+      if (m < 0.05) state.capHold = false;
+    }
     if (!firing && state.shotIdx > 0 && nowMs - state.lastFireEnd > IDX_RESET_MS) state.shotIdx = 0;
   }
 

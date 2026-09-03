@@ -61,7 +61,7 @@ if (import.meta.env.DEV) {
 startLoop((dt) => {
   const now = performance.now();
   movement.update(dt);
-  shooter.update(now);
+  shooter.update(now, dt);
   player.state.offYaw = recoil.state.offYaw;
   player.state.offPitch = recoil.state.offPitch;
   player.apply();
