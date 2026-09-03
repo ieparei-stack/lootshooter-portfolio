@@ -8,6 +8,10 @@ import { createPlayerCamera } from './player/camera.js';
 import { createMovement } from './player/movement.js';
 import { createView } from './player/view.js';
 import { createSettingsPanel } from './ui/settingsPanel.js';
+import { showWarnings } from './ui/warnings.js';
+import { createWeaponInfo } from './ui/weaponInfo.js';
+import { loadWeapons } from './weapon/weaponData.js';
+import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
 const { renderer, scene, camera } = createRenderer(canvas);
@@ -36,8 +40,14 @@ const movement = createMovement(player, keyboard, blocks);
 const view = createView(camera, mouseButtons);
 createSettingsPanel();
 
+// 무기 데이터 — 값 오류는 화면 경고 + 기본값으로 진행
+const { weapons, warnings } = loadWeapons(weaponsJson);
+showWarnings(warnings);
+const weaponInfo = createWeaponInfo();
+weaponInfo.set(weapons[0]);
+
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
-if (import.meta.env.DEV) window.__debug = { player, movement, view, config };
+if (import.meta.env.DEV) window.__debug = { player, movement, view, config, weapons, warnings, showWarnings };
 
 startLoop((dt) => {
   movement.update(dt);

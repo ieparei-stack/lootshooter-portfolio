@@ -1,0 +1,23 @@
+{
+  "weapons": [
+    {
+      "id": "std",
+      "name": "기준 AR",
+      "tag": "BASELINE",
+      "rpm": 660,
+      "mag": 30,
+      "pattern": { "mode": "curve", "v0": 0.28, "vG": 0.030, "vMax": 0.55, "h0": 0.056, "hMode": "fixed-alt", "hMax": 0.09 },
+      "randV": 0.25,
+      "randH": 0.0,
+      "recovery": { "delay": 110, "speed": 7 },
+      "spread": { "base": 0.34, "bloom": 0.045, "max": 0.95, "decay": 1.6 },
+      "ads": { "allowed": true, "recoil": 0.72, "spread": 0.30, "time": 250 },
+      "cap": { "on": false, "deg": 6 },
+      "damage": 200,
+      "headshotMul": 1.5,
+      "falloff": { "start": 20, "end": 50, "minRatio": 0.5 },
+      "reloadTime": 2.0,
+      "moveSpreadMul": 2.0
+    }
+  ]
+}
