@@ -10,8 +10,11 @@ import { createView } from './player/view.js';
 import { createSettingsPanel } from './ui/settingsPanel.js';
 import { showWarnings } from './ui/warnings.js';
 import { createWeaponInfo } from './ui/weaponInfo.js';
+import { createCrosshair } from './ui/crosshair.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
+import { createSpread } from './weapon/spread.js';
+import { createImpactMarks } from './weapon/impactMarks.js';
 import { createShooter } from './weapon/shooter.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -49,13 +52,16 @@ const weaponInfo = createWeaponInfo();
 const weapon = weapons[0];
 weaponInfo.set(weapon);
 
-// 반동 엔진 + 최소 연사 루프 (좌클릭 유지). 반동 오프셋은 카메라 조준각과 분리해 합성된다.
+// 반동 + 퍼짐 + 탄자국 + 발사 루프 + 조준선(원)
 const recoil = createRecoil(weapon);
-const shooter = createShooter(weapon, recoil, mouseButtons);
+const spread = createSpread(weapon);
+const marks = createImpactMarks(scene);
+const shooter = createShooter(weapon, recoil, spread, mouseButtons, { player, movement, blocks, marks });
+const crosshair = createCrosshair();
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, shooter };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, recoil, spread, marks, shooter };
 }
 
 startLoop((dt) => {
@@ -66,5 +72,6 @@ startLoop((dt) => {
   player.state.offPitch = recoil.state.offPitch;
   player.apply();
   view.update();
+  crosshair.set(shooter.state.currentSpread, view.state.fov);
   renderer.render(scene, camera);
 });
