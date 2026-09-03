@@ -61,6 +61,16 @@ export function createKeyboard(mouseLook) {
   return { isDown, onPress };
 }
 
+// 마우스 휠 (T16 무기 순환 전환). 포인터 락 중에만 받고, deltaY 부호만 쓴다: 아래로 굴림 = +1, 위로 = −1.
+export function createMouseWheel(mouseLook, onStep) {
+  document.addEventListener('wheel', (e) => {
+    if (!mouseLook.isLocked()) return;
+    e.preventDefault();
+    if (e.deltaY === 0) return;
+    onStep(e.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+}
+
 // 마우스 버튼 눌림 상태 (0 = 좌, 2 = 우). 포인터 락 중에만 받고, 풀리면 초기화.
 // T06: 우클릭 유지 = 정조준 FOV 미리보기. T11 ADS, T12 사격이 그대로 쓴다.
 export function createMouseButtons(mouseLook) {

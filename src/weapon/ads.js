@@ -23,5 +23,8 @@ export function createAds(weapon, mouseButtons) {
   function recoilMul() { return weapon.ads.allowed ? 1 + (weapon.ads.recoil - 1) * state.ease : 1; }
   function spreadMul() { return weapon.ads.allowed ? 1 + (weapon.ads.spread - 1) * state.ease : 1; }
 
-  return { state, update, recoilMul, spreadMul };
+  // 무기 전환(T16): 우클릭을 잡은 채 바꿔도 새 총은 진행도 0에서 다시 조준을 시작한다
+  function reset() { state.held = false; state.p = 0; state.ease = 0; }
+
+  return { state, update, recoilMul, spreadMul, reset };
 }

@@ -84,5 +84,11 @@ export function createRecoil(weapon, rng = Math.random) {
     if (!firing && state.shotIdx > 0 && nowMs - state.lastFireEnd > IDX_RESET_MS) state.shotIdx = 0;
   }
 
-  return { state, compiled, fire, update };
+  // 무기 전환(T16): 누적 반동·패턴 인덱스를 처음 상태로
+  function reset() {
+    state.offYaw = 0; state.offPitch = 0; state.shotIdx = 0;
+    state.capHold = false; state.lastIdx = -1;
+  }
+
+  return { state, compiled, fire, update, reset };
 }

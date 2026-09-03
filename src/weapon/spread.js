@@ -24,5 +24,7 @@ export function createSpread(weapon, rng = Math.random) {
     return { dYaw: Math.cos(ang) * r, dPitch: Math.sin(ang) * r, r, ang };
   }
 
-  return { state, current, onShot, update, sample };
+  function reset() { state.bloom = 0; }   // 무기 전환(T16)
+
+  return { state, current, onShot, update, sample, reset };
 }

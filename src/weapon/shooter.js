@@ -5,10 +5,11 @@ import { directionFromAngles, raycastWorld } from './raycast.js';
 //   좌클릭 유지 → rpm 간격으로 한 발씩: 반동(× ADS 배율) → 퍼짐 샘플(× ADS × 이동 배율) → 레이캐스트
 //   → 표적이면 피해 적용(targets.applyHit), 벽·과녁판이면 탄자국
 //   탄창 mag 소모, 예비탄 무한. R 또는 빈 탄창에서 사격 입력 시 재장전(reloadTime).
-//   재장전 취소: 질주 / 정조준(우클릭 새로 누름) / 탄이 남은 채 사격 입력. (무기 교체는 T16)
+//   재장전 취소: 질주 / 정조준(우클릭 새로 누름) / 탄이 남은 채 사격 입력 / 무기 전환(T16, loadout.js가 cancelReload 호출).
+//   R 키 등록은 main.js가 맡는다 — 무기마다 shooter가 한 벌씩 있어 여기서 등록하면 서로 덮어쓴다.
 //   질주 중 사격 불가 — 사격 버튼을 누르면 질주가 풀리고 같은 프레임에 바로 발사.
 //   복귀·퍼짐 회복에는 "실제로 발사 가능한 상태로 버튼을 잡고 있는가"를 넘긴다 (시뮬레이터 !firing || ammo<=0).
-export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboard, deps) {
+export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
   const { player, movement, blocks, marks, targets, onFire } = deps;
   const state = {
     firing: false, lastShot: -Infinity, shots: 0,
@@ -33,7 +34,6 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, keyboar
     state.reloading = false;
     state.reloadProgress = null;
   }
-  keyboard.onPress('KeyR', () => startReload(state.now));
 
   // 이동 퍼짐 배율: 걷기 최고속도에서 moveSpreadMul, 속도에 비례
   function moveMul() {
