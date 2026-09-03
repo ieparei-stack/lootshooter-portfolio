@@ -1,4 +1,5 @@
 // 현재 무기 표시 (오른쪽 아래). 탄약 카운터 + 재장전 진행 바 + 이름 + 주요 수치.
+// 아래에 사격장 라인업(4정)의 이름과 핵심 수치를 항상 나열하고 현재 무기를 강조한다 (T15).
 export function createWeaponInfo() {
   const root = document.createElement('div');
   root.id = 'weaponInfo';
@@ -22,10 +23,13 @@ export function createWeaponInfo() {
   name.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:4px';
   const stats = document.createElement('div');
   stats.style.cssText = 'opacity:0.85;white-space:pre';
+  const lineup = document.createElement('div');
+  lineup.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.2);white-space:pre;font-size:12px';
   root.appendChild(ammo);
   root.appendChild(bar);
   root.appendChild(name);
   root.appendChild(stats);
+  root.appendChild(lineup);
 
   function set(w) {
     name.textContent = `${w.name}  ·  ${w.tag}`;
@@ -44,6 +48,25 @@ export function createWeaponInfo() {
     ].join('\n');
   }
 
+  // 라인업 한 줄 요약: 이름 · RPM/탄창 · 패턴 종류 · 무작위 · 복귀 · 기본 퍼짐 · ADS
+  function summary(w) {
+    const p = w.pattern;
+    const pat = p.mode === 'array' ? `고정배열 ${p.arr.length}발` : `curve v0 ${p.v0}° h ${p.hMode}`;
+    const ads = w.ads.allowed ? `ADS ×${w.ads.spread} ${w.ads.time}ms` : 'ADS 불가';
+    return `${w.rpm}rpm/${w.mag}발 · ${pat} · 무작위 ${w.randV}/${w.randH} · 복귀 ${w.recovery.delay}ms ${w.recovery.speed}°/s · 퍼짐 ${w.spread.base}° · ${ads}`;
+  }
+
+  // 라인업 전체 표시. current: 현재 무기 인덱스
+  function setLineup(list, current) {
+    lineup.replaceChildren();
+    list.forEach((w, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = i === current ? 'color:#fff;font-weight:700' : 'opacity:0.7';
+      row.textContent = `${i === current ? '▶' : ' '} ${i + 1}. ${w.name} — ${summary(w)}`;
+      lineup.appendChild(row);
+    });
+  }
+
   let lastText = '', lastW = -1;
   // mag: 현재 탄, magSize: 탄창, progress: 재장전 진행도 0~1 또는 null
   function setAmmo(mag, magSize, progress) {
@@ -57,5 +80,5 @@ export function createWeaponInfo() {
     if (w !== lastW) { lastW = w; fill.style.width = w + '%'; }
   }
 
-  return { root, set, setAmmo };
+  return { root, set, setAmmo, setLineup };
 }

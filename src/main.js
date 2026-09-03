@@ -54,8 +54,9 @@ createSettingsPanel();
 const { weapons, warnings } = loadWeapons(weaponsJson);
 showWarnings(warnings);
 const weaponInfo = createWeaponInfo();
-const weapon = weapons[0];
+const weapon = weapons[0];          // 시작 무기 = 라인업 1번 (CS형). 전환은 T16
 weaponInfo.set(weapon);
+weaponInfo.setLineup(weapons, 0);
 
 // 정조준 + FOV 보간 + 반동 + 퍼짐 + 탄자국 + 명중 피드백 + 발사·탄약·재장전·판정 + 조준선(원)
 const ads = createAds(weapon, mouseButtons);
