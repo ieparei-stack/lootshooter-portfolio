@@ -26,6 +26,8 @@ import { createShooter } from './weapon/shooter.js';
 import { createLoadout } from './weapon/loadout.js';
 import { createMonsters } from './monster/monsters.js';
 import { createWaveZone } from './stage/waves.js';
+import { createHealth } from './player/health.js';
+import { createPlayerHud } from './ui/playerHud.js';
 import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
@@ -68,17 +70,28 @@ const tracers = createTracers(scene);
 const hitmarker = createHitmarker();
 const damageNumbers = createDamageNumbers();
 
-// 몬스터 2종 (T22) + 트리거 존/웨이브 (T23). 25m 선을 넘으면 waves가 사격장 끝에 웨이브를 스폰한다. 플레이어 HP는 T24.
-// 받은 공격은 횟수만 센다 (HP·피격 표시는 T24).
+// 몬스터 2종 (T22) + 트리거 존/웨이브 (T23) + 플레이어 HP (T24).
+// 몬스터 공격 → health.damage → HUD(비네트·방향 호·HP 바). HP 0 → 웨이브 정지(몬스터 제거) → 2초 뒤 같은 자리 부활 → 같은 웨이브 재스폰.
 const hitsTaken = { count: 0, text: null };
+const playerHud = createPlayerHud();
+let waves = null;   // 아래에서 만든다 (health 콜백이 참조)
+const health = createHealth({
+  player,
+  onHit: (angle) => playerHud.hit(angle),
+  onDeath: () => waves.holdForRespawn(),
+  onRespawn: () => waves.restartCurrent(),
+});
 const monsters = createMonsters(scene, {
   blocks, player, tracers,
-  onPlayerHit: (damage, kind) => {
+  onPlayerHit: (damage, kind, m) => {
+    if (!health.damage(damage, m ? m.pos : null)) return;
     hitsTaken.count++;
     if (hitsTaken.text) hitsTaken.text.textContent = `받은 공격: ${hitsTaken.count}회 (마지막 −${damage} ${kind === 'melee' ? '근접' : '원거리'})`;
   },
 });
-const waves = createWaveZone(scene, { player, monsters });
+waves = createWaveZone(scene, { player, monsters });
+// 사망 중에는 사격·정조준 입력을 막는다 (버튼 상태를 감싼다)
+const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b) };
 
 function onFire({ origin, dir, yaw, pitch, hit }) {
   tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
@@ -90,10 +103,10 @@ function onFire({ origin, dir, yaw, pitch, hit }) {
 
 // 무기마다 정조준·반동·퍼짐·발사 한 벌(kit). 전환(T16)은 loadout이 맡는다 — 시작 무기 = 라인업 1번 (CS형)
 function makeKit(weapon) {
-  const ads = createAds(weapon, mouseButtons);
+  const ads = createAds(weapon, gunButtons);
   const recoil = createRecoil(weapon);
   const spread = createSpread(weapon);
-  const shooter = createShooter(weapon, recoil, spread, ads, mouseButtons,
+  const shooter = createShooter(weapon, recoil, spread, ads, gunButtons,
     { player, movement, blocks, marks, hittables: [targets, monsters], onFire });
   return { weapon, ads, recoil, spread, shooter };
 }
@@ -131,11 +144,12 @@ mg.addSlider({ label: '원거리형 HP (리셋 후 적용)', min: 500, max: 6000
 mg.addSlider({ label: '근접형 속도 (m/s)', min: 2, max: 10, step: 0.5, get: () => M.melee.speed, set: (v) => { M.melee.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '원거리형 속도 (m/s)', min: 2, max: 8, step: 0.5, get: () => M.ranged.speed, set: (v) => { M.ranged.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '조준선 딜레이 (s)', min: 0.2, max: 2.0, step: 0.1, get: () => M.ranged.aimDelay, set: (v) => { M.ranged.aimDelay = v; }, format: (v) => v.toFixed(1) });
-mg.addSlider({ label: '근접형 피해', min: 5, max: 50, step: 5, get: () => M.melee.damage, set: (v) => { M.melee.damage = v; } });
-mg.addSlider({ label: '원거리형 피해', min: 5, max: 50, step: 5, get: () => M.ranged.damage, set: (v) => { M.ranged.damage = v; } });
+mg.addSlider({ label: '근접형 피해', min: 5, max: 300, step: 5, get: () => M.melee.damage, set: (v) => { M.melee.damage = v; } });
+mg.addSlider({ label: '원거리형 피해', min: 5, max: 300, step: 5, get: () => M.ranged.damage, set: (v) => { M.ranged.damage = v; } });
+mg.addSlider({ label: '플레이어 최대 HP (리셋 후 적용)', min: 100, max: 3000, step: 100, get: () => config.player.hpMax, set: (v) => { config.player.hpMax = v; } });
 hitsTaken.text = mg.addText('받은 공격: 0회');
 // T23: 구역 리셋 — 몬스터 전부 제거 + 트리거 재무장 (25m 선 밖으로 나갔다 들어오면 다시 시작)
-const resetZone = () => { waves.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
+const resetZone = () => { waves.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
 settingsPanel.addButton('구역 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
@@ -143,7 +157,7 @@ window.addEventListener('resize', layoutPanels);
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, waves, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, waves, health, playerHud, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -151,7 +165,9 @@ startLoop((dt) => {
   const kit = loadout.current();
   const { weapon, ads, recoil, spread, shooter } = kit;
   patternOverlay.beforeShoot(recoil);   // 첫 발 직전 조준 방향을 궤적 원점으로 (shooter.update보다 먼저)
-  movement.update(dt);
+  health.update(dt);              // 사망 타이머·눈높이·부활 (movement보다 먼저 — 죽으면 이동을 건너뛴다)
+  if (health.state.dead) { movement.state.vx = movement.state.vz = movement.state.speed = 0; }
+  else movement.update(dt);
   ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
   shooter.update(now, dt);
   targets.update(dt, camera);
@@ -163,6 +179,9 @@ startLoop((dt) => {
   player.apply();
   view.update();
   damageNumbers.update(dt);
+  playerHud.update(dt);
+  playerHud.setHp(health.state.hp, health.state.hpMax);
+  playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   patternOverlay.draw(kit);

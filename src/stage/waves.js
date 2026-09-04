@@ -6,6 +6,7 @@ import { RANGE, floorLine, floorText } from './range.js';
 //   countdown : timer가 0이 되면 다음 웨이브 스폰. 첫 웨이브 firstDelay, 이후 betweenDelay
 //   wave      : 살아있는 몬스터가 0이 되면 → 마지막 웨이브면 clear, 아니면 countdown
 //   clear     : 끝. 더 이상 스폰하지 않는다. reset()으로 armed로 되돌린다 (몬스터 전부 제거)
+//   hold      : 플레이어 사망 중 (T24). 몬스터 전부 제거, 진행 정지. 부활 시 restartCurrent() → 같은 웨이브를 countdown부터
 // 사용자 결정(2026-09-04): 3웨이브 근접2 → 원거리2 → 근접2+원거리2, 25m 선 발동, 45~50m 끝에서 등장, 웨이브 간 5초 카운트다운.
 // 스폰 좌표는 50m 표적(x ±0.7, z −50)과 겹치지 않게 x ±2~4, z −45~−47 (Claude 임시 배치).
 export const WAVES = [
@@ -82,6 +83,23 @@ export function createWaveZone(scene, { player, monsters, waves = WAVES } = {}) 
     if (text !== null) hud.textContent = text;
   }
 
+  // T24: 사망 → 현재 웨이브 몬스터 전부 제거하고 멈춘다. 교전 중이 아니면 무시 (몬스터가 없으니 죽을 일도 없다)
+  function holdForRespawn() {
+    if (state.phase !== 'wave') return false;
+    monsters.reset([]);
+    state.alive = 0;
+    setPhase('hold');
+    draw();
+    return true;
+  }
+  // T24: 부활 → 같은 웨이브를 betweenDelay 카운트다운 뒤 다시 스폰
+  function restartCurrent() {
+    if (state.phase !== 'hold') return false;
+    setPhase('countdown', W.betweenDelay);
+    draw();
+    return true;
+  }
+
   // 몬스터 전부 제거 + 대기 상태로. 플레이어가 25m 선 안쪽에 서 있으면 다음 프레임에 바로 다시 발동한다.
   function reset() {
     monsters.reset([]);
@@ -90,5 +108,5 @@ export function createWaveZone(scene, { player, monsters, waves = WAVES } = {}) 
     draw();
   }
 
-  return { state, update, reset, waves };
+  return { state, update, reset, holdForRespawn, restartCurrent, waves };
 }
