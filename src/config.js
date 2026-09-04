@@ -9,7 +9,7 @@ export const config = {
     maxPixelRatio: 2,
   },
   ground: {
-    size: 120,                  // 한 변 길이 (m). 사격장 z −55까지 덮는다 (T17)
+    size: 420,                  // 한 변 길이 (m). 보스 방 z −198까지 덮는다 (T26. T17 때는 120)
     color: 0x8a8a8a,            // 회색
   },
   player: {
@@ -57,10 +57,23 @@ export const config = {
       fireRange: 25,            // 이 거리 안 + 시야 있으면 조준 시작
       cooldown: 1.5,            // 발사 후 다음 조준까지 (s)
     },
+    boss: {                       // T26 사용자 결정: 큰 원거리형, HP 20000, 조준선 2개, HP 50%부터 근접형 2마리씩 소환. 나머지 임시
+      hp: 20000,
+      speed: 2,
+      damage: 15,               // 조준선 하나당 (동시 2발 = 30)
+      aimDelay: 1.0,
+      preferDist: 18,
+      retreatDist: 8,
+      fireRange: 40,
+      cooldown: 2.0,
+      summonHpRatio: 0.5,       // 이 비율 이하부터 소환
+      summonCount: 2,           // 한 번에
+      summonInterval: 10,       // 소환 간격 (s)
+      summonMax: 4,             // 살아있는 소환수 상한
+    },
   },
   // 4단계 트리거 존 + 웨이브 (T23). 웨이브 구성 자체는 stage/waves.js 코드에 둔다.
-  wave: {
-    triggerZ: -56,              // 이 z보다 안쪽(−Z)으로 들어서면 발동 — 백스톱 문(z −55~−55.5)을 지나 구역 안 (T25. T23 때는 25m 선)
+  wave: {                       // 트리거 위치는 방마다 (stage/arena.js room.triggerZ = 앞벽 안쪽 0.5m)
     firstDelay: 2,              // 발동 후 첫 웨이브까지 (s) — Claude 임시 수치
     betweenDelay: 5,            // 웨이브 처치 후 다음 웨이브까지 (s) — 사용자 결정
   },

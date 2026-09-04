@@ -4,7 +4,7 @@ import { createRenderer } from './core/renderer.js';
 import { startLoop } from './core/loop.js';
 import { createMouseLook, createKeyboard, createMouseButtons, createMouseWheel } from './core/input.js';
 import { buildRange, PLAYER_START } from './stage/range.js';
-import { buildArena } from './stage/arena.js';
+import { createStage } from './stage/stage.js';
 import { createTargets } from './stage/targets.js';
 import { createPlayerCamera } from './player/camera.js';
 import { createMovement } from './player/movement.js';
@@ -26,7 +26,6 @@ import { createTracers, muzzlePosition } from './weapon/tracers.js';
 import { createShooter } from './weapon/shooter.js';
 import { createLoadout } from './weapon/loadout.js';
 import { createMonsters } from './monster/monsters.js';
-import { createWaveZone } from './stage/waves.js';
 import { createHealth } from './player/health.js';
 import { createPlayerHud } from './ui/playerHud.js';
 import weaponsJson from '../data/weapons.json';
@@ -49,7 +48,7 @@ ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 // 사격장 + 표적 + 1인칭 카메라 + 입력 + 이동 + 조절 패널
-const blocks = [...buildRange(scene), ...buildArena(scene)];   // 사격장 + 전투 구역 1 (T25)
+const blocks = [...buildRange(scene)];   // 공용 충돌·레이캐스트 블록. 방 4개(T26)는 아래 createStage가 여기에 push 한다 (같은 배열 참조)
 const targets = createTargets(scene);
 const player = createPlayerCamera(camera, PLAYER_START);
 const mouseLook = createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));
@@ -71,26 +70,26 @@ const tracers = createTracers(scene);
 const hitmarker = createHitmarker();
 const damageNumbers = createDamageNumbers();
 
-// 몬스터 2종 (T22) + 트리거 존/웨이브 (T23) + 플레이어 HP (T24).
+// 몬스터 (T22·T26 보스) + 스테이지 흐름/웨이브 (T23·T26) + 플레이어 HP (T24).
 // 몬스터 공격 → health.damage → HUD(비네트·방향 호·HP 바). HP 0 → 웨이브 정지(몬스터 제거) → 2초 뒤 같은 자리 부활 → 같은 웨이브 재스폰.
 const hitsTaken = { count: 0, text: null };
 const playerHud = createPlayerHud();
-let waves = null;   // 아래에서 만든다 (health 콜백이 참조)
+let stage = null;   // 아래에서 만든다 (health 콜백이 참조)
 const health = createHealth({
   player,
   onHit: (angle) => playerHud.hit(angle),
-  onDeath: () => waves.holdForRespawn(),
-  onRespawn: () => waves.restartCurrent(),
+  onDeath: () => stage.holdForRespawn(),
+  onRespawn: () => stage.restartCurrent(),
 });
 const monsters = createMonsters(scene, {
   blocks, player, tracers,
   onPlayerHit: (damage, kind, m) => {
     if (!health.damage(damage, m ? m.pos : null)) return;
     hitsTaken.count++;
-    if (hitsTaken.text) hitsTaken.text.textContent = `받은 공격: ${hitsTaken.count}회 (마지막 −${damage} ${kind === 'melee' ? '근접' : '원거리'})`;
+    if (hitsTaken.text) hitsTaken.text.textContent = `받은 공격: ${hitsTaken.count}회 (마지막 −${damage} ${kind === 'melee' ? '근접' : kind === 'boss' ? '보스' : '원거리'})`;
   },
 });
-waves = createWaveZone(scene, { player, monsters });
+stage = createStage(scene, { player, monsters, blocks });   // 구역 1~3 + 보스 방, 문 열림
 // 사망 중에는 사격·정조준 입력을 막는다 (버튼 상태를 감싼다)
 const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b) };
 
@@ -147,18 +146,19 @@ mg.addSlider({ label: '원거리형 속도 (m/s)', min: 2, max: 8, step: 0.5, ge
 mg.addSlider({ label: '조준선 딜레이 (s)', min: 0.2, max: 2.0, step: 0.1, get: () => M.ranged.aimDelay, set: (v) => { M.ranged.aimDelay = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '근접형 피해', min: 5, max: 300, step: 5, get: () => M.melee.damage, set: (v) => { M.melee.damage = v; } });
 mg.addSlider({ label: '원거리형 피해', min: 5, max: 300, step: 5, get: () => M.ranged.damage, set: (v) => { M.ranged.damage = v; } });
+mg.addSlider({ label: '보스 HP (리셋 후 적용)', min: 5000, max: 40000, step: 1000, get: () => M.boss.hp, set: (v) => { M.boss.hp = v; } });
 mg.addSlider({ label: '플레이어 최대 HP (리셋 후 적용)', min: 100, max: 3000, step: 100, get: () => config.player.hpMax, set: (v) => { config.player.hpMax = v; } });
 hitsTaken.text = mg.addText('받은 공격: 0회');
-// T23: 구역 리셋 — 몬스터 전부 제거 + 트리거 재무장 (25m 선 밖으로 나갔다 들어오면 다시 시작)
-const resetZone = () => { waves.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
-settingsPanel.addButton('구역 리셋 (M)', resetZone);
+// T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
+const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
+settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
 window.addEventListener('resize', layoutPanels);
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, waves, health, playerHud, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -172,7 +172,7 @@ startLoop((dt) => {
   ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
   shooter.update(now, dt);
   targets.update(dt, camera);
-  waves.update(dt);               // 트리거·스폰·웨이브 전이 (monsters.update 앞 — 스폰된 프레임에 바로 움직인다)
+  stage.update(dt);               // 트리거·스폰·웨이브 전이·문 열림 (monsters.update 앞 — 스폰된 프레임에 바로 움직인다)
   monsters.update(dt, camera);
   tracers.update(dt);
   player.state.offYaw = recoil.state.offYaw;
