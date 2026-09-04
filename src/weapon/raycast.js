@@ -47,7 +47,7 @@ export function raycastWorld(origin, dir, blocks, maxDist = 500, colliders = [])
   for (const c of colliders) {
     const h = rayBox(origin, dir, c.min, c.max);
     if (h && h.t <= maxDist && (!best || h.t < best.distance)) {
-      best = { distance: h.t, normal: h.normal, target: c.target, part: c.part };
+      best = { distance: h.t, normal: h.normal, target: c.target, part: c.part, collider: c };
     }
   }
   if (dir.y < -1e-9) {

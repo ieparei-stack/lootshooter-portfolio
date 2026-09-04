@@ -30,4 +30,29 @@ export const config = {
     sensitivityStep: 0.5,
     pitchLimit: 89,             // 위아래 최대 각도 (임시 수치)
   },
+  // 4단계 몬스터 (T22). 인터뷰 확정: HP·근접 속도·조준선 딜레이는 슬라이더로 조절 (기본값 사용자 결정).
+  // 나머지는 Claude 임시 수치 — 데모 안정화까지 자유 조정 (CLAUDE.md 3-2).
+  monster: {
+    aggroRange: 30,             // 인지 거리 (m). 시야가 있어야 함. 맞으면 즉시 인지
+    radius: 0.4,                // 충돌 반지름 (m)
+    melee: {
+      hp: 3000,                 // 사용자 결정 (레버)
+      speed: 7,                 // m/s, 사용자 결정 (레버). 걷기 5.5보다 빠름
+      damage: 15,
+      reach: 1.8,               // 공격 시작 거리 (m, 중심 간)
+      hitRange: 2.2,            // 준비 끝난 순간 이 거리 안이면 명중
+      windup: 0.35,             // 공격 준비 (s)
+      cooldown: 1.2,            // 공격 후 다음 공격까지 (s)
+    },
+    ranged: {
+      hp: 2000,                 // 사용자 결정 (레버)
+      speed: 4,
+      damage: 10,
+      aimDelay: 0.8,            // 조준선이 보인 뒤 발사까지 (s). 사용자: 레버로 조절
+      preferDist: 15,           // 이 거리까지 접근해 정지
+      retreatDist: 6,           // 이보다 가까우면 물러남
+      fireRange: 25,            // 이 거리 안 + 시야 있으면 조준 시작
+      cooldown: 1.5,            // 발사 후 다음 조준까지 (s)
+    },
+  },
 };

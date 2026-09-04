@@ -102,6 +102,8 @@ export function createTargets(scene) {
     }
     for (const c of targets[targets.length - 1].colliders) c.target = targets[targets.length - 1];
   }
+  const api = { list: targets, colliders, applyHit, update };
+  for (const t of targets) for (const c of t.colliders) c.system = api;   // T22: shooter가 명중한 시스템의 applyHit를 부른다
 
   // 지금 맞을 수 있는 콜라이더 목록 (쓰러진 표적 제외)
   function colliders() {
@@ -148,5 +150,5 @@ export function createTargets(scene) {
     }
   }
 
-  return { list: targets, colliders, applyHit, update };
+  return api;
 }

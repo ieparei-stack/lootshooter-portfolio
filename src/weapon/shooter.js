@@ -12,7 +12,8 @@ import { colorOf } from '../ui/weaponColors.js';
 //   질주 중 사격 불가 — 사격 버튼을 누르면 질주가 풀리고 같은 프레임에 바로 발사.
 //   복귀·퍼짐 회복에는 "실제로 발사 가능한 상태로 버튼을 잡고 있는가"를 넘긴다 (시뮬레이터 !firing || ammo<=0).
 export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
-  const { player, movement, blocks, marks, targets, onFire } = deps;
+  const { player, movement, blocks, marks, onFire } = deps;
+  const hittables = deps.hittables || (deps.targets ? [deps.targets] : []);   // T22: 표적 + 몬스터. 각 시스템은 colliders()/applyHit()
   const state = {
     firing: false, lastShot: -Infinity, shots: 0,
     currentSpread: 0,   // 조준선 표시용 (°)
@@ -54,11 +55,12 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
 
     const origin = { x: player.state.x, y: player.state.eyeHeight, z: player.state.z };
     const dir = directionFromAngles(yaw, pitch);
-    const colliders = targets ? targets.colliders() : [];
+    const colliders = [];
+    for (const h of hittables) for (const c of h.colliders()) colliders.push(c);
     const hit = raycastWorld(origin, dir, blocks, 500, colliders);
     if (hit) {
-      if (hit.part && targets) {
-        hit.result = targets.applyHit(hit, weapon);
+      if (hit.part && hit.collider && hit.collider.system) {
+        hit.result = hit.collider.system.applyHit(hit, weapon);
         if (hit.part === 'paper') marks.add(hit.point, hit.normal, colorOf(weapon));   // 사람 표적에는 자국을 남기지 않는다(쓰러지면 허공에 뜸)
       } else {
         marks.add(hit.point, hit.normal, colorOf(weapon));   // T18: 무기별 색

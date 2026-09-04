@@ -16,11 +16,11 @@ export function createSettingsPanel() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'opacity:0.7;margin-bottom:6px';
-  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · X: 탄착군 지우기 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝 · 흰 궤적: 이론 반동(무작위 없음) · P: 궤적 켜기/끄기';
+  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · X: 탄착군 지우기 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝 · 흰 궤적: 이론 반동(무작위 없음) · P: 궤적 켜기/끄기 · M: 몬스터 리셋 (사격장 끝에 근접형·원거리형 1마리씩, 30m 안으로 가면 반응)';
   root.appendChild(hint);
 
-  // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다.
-  function addSlider({ label, min, max, step, get, set, format }) {
+  // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다. parent를 주면 그 안에 (접이식 그룹용, T22).
+  function addSlider({ label, min, max, step, get, set, format }, parent = root) {
     const row = document.createElement('label');
     row.style.cssText = 'display:block;margin-top:4px';
 
@@ -45,7 +45,7 @@ export function createSettingsPanel() {
 
     row.appendChild(title);
     row.appendChild(input);
-    root.appendChild(row);
+    parent.appendChild(row);
     return { input, refresh };
   }
 
@@ -73,14 +73,44 @@ export function createSettingsPanel() {
     get: () => R.adsFov, set: (v) => { R.adsFov = v; }, format: (v) => String(v) });
 
   // 버튼 한 줄 추가 (T18: 탄착군 지우기). 잠금 해제 상태에서 누른다.
-  function addButton(label, onClick) {
+  function addButton(label, onClick, parent = root) {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.style.cssText = 'display:block;width:100%;margin-top:8px;padding:5px 8px;font:13px system-ui;background:#3a5f8a;color:#fff;border:0;border-radius:4px;cursor:pointer';
     btn.addEventListener('click', onClick);
-    root.appendChild(btn);
+    parent.appendChild(btn);
     return btn;
   }
 
-  return { root, addSlider, addButton };
+  // 접이식 그룹 (T22 몬스터 레버). 기본 접힘. 펼치면 패널이 길어지므로 onToggle로 아래 패널 위치를 맞춘다.
+  function addGroup(title, { open = false, onToggle = null } = {}) {
+    const head = document.createElement('div');
+    head.style.cssText = 'margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.2);font-weight:700;cursor:pointer;user-select:none';
+    const body = document.createElement('div');
+    body.style.display = open ? 'block' : 'none';
+    const label = () => `${body.style.display === 'none' ? '▸' : '▾'} ${title}`;
+    head.textContent = label();
+    head.addEventListener('click', () => {
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+      head.textContent = label();
+      if (onToggle) onToggle(body.style.display !== 'none');
+    });
+    root.appendChild(head);
+    root.appendChild(body);
+    const addText = (text) => {
+      const el = document.createElement('div');
+      el.style.cssText = 'margin-top:6px;opacity:0.85';
+      el.textContent = text;
+      body.appendChild(el);
+      return el;
+    };
+    return {
+      body,
+      addSlider: (opts) => addSlider(opts, body),
+      addButton: (l, fn) => addButton(l, fn, body),
+      addText,
+    };
+  }
+
+  return { root, addSlider, addButton, addGroup };
 }
