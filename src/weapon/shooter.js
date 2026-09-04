@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { directionFromAngles, raycastWorld } from './raycast.js';
+import { colorOf } from '../ui/weaponColors.js';
 
 // 발사 루프 + 탄약 + 재장전 + 판정.
 //   좌클릭 유지 → rpm 간격으로 한 발씩: 반동(× ADS 배율) → 퍼짐 샘플(× ADS × 이동 배율) → 레이캐스트
@@ -58,9 +59,9 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     if (hit) {
       if (hit.part && targets) {
         hit.result = targets.applyHit(hit, weapon);
-        if (hit.part === 'paper') marks.add(hit.point, hit.normal);   // 사람 표적에는 자국을 남기지 않는다(쓰러지면 허공에 뜸)
+        if (hit.part === 'paper') marks.add(hit.point, hit.normal, colorOf(weapon));   // 사람 표적에는 자국을 남기지 않는다(쓰러지면 허공에 뜸)
       } else {
-        marks.add(hit.point, hit.normal);
+        marks.add(hit.point, hit.normal, colorOf(weapon));   // T18: 무기별 색
       }
     }
     state.lastHit = hit;

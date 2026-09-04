@@ -50,7 +50,7 @@ const mouseLook = createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));
 const keyboard = createKeyboard(mouseLook);
 const mouseButtons = createMouseButtons(mouseLook);
 const movement = createMovement(player, keyboard, blocks);
-createSettingsPanel();
+const settingsPanel = createSettingsPanel();
 
 // 무기 데이터 — 값 오류는 화면 경고 + 기본값으로 진행
 const { weapons, warnings } = loadWeapons(weaponsJson);
@@ -98,6 +98,9 @@ const crosshair = createCrosshair();
 ['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((code, i) => keyboard.onPress(code, () => loadout.select(i)));
 createMouseWheel(mouseLook, (step) => (step > 0 ? loadout.next() : loadout.prev()));
 keyboard.onPress('KeyR', () => { const k = loadout.current(); k.shooter.startReload(k.shooter.state.now); });
+// T18: 탄착군 지우기 — 잠금 중 X, 해제 중엔 왼쪽 위 패널 버튼
+keyboard.onPress('KeyX', () => marks.clear());
+settingsPanel.addButton('탄착군 지우기 (X)', () => marks.clear());
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {

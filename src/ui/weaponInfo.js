@@ -1,5 +1,8 @@
+import { colorOf } from './weaponColors.js';
+
 // 현재 무기 표시 (오른쪽 아래). 탄약 카운터 + 재장전 진행 바 + 이름 + 주요 수치.
 // 아래에 사격장 라인업(4정)의 이름과 핵심 수치를 항상 나열하고 현재 무기를 강조한다 (T15).
+// 이름과 라인업 앞의 색 네모 = 그 무기의 탄착 자국 색 (T18).
 export function createWeaponInfo() {
   const root = document.createElement('div');
   root.id = 'weaponInfo';
@@ -31,8 +34,15 @@ export function createWeaponInfo() {
   root.appendChild(stats);
   root.appendChild(lineup);
 
+  // 무기 색 스와치 (T18: 탄착 자국과 같은 색)
+  function swatch(w) {
+    const s = document.createElement('span');
+    s.style.cssText = `display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;background:${colorOf(w)}`;
+    return s;
+  }
+
   function set(w) {
-    name.textContent = `${w.name}  ·  ${w.tag}`;
+    name.replaceChildren(swatch(w), document.createTextNode(`${w.name}  ·  ${w.tag}`));
     const p = w.pattern;
     const patternLine = p.mode === 'array'
       ? `패턴 고정 배열 ${p.arr.length}발`
@@ -62,7 +72,11 @@ export function createWeaponInfo() {
     list.forEach((w, i) => {
       const row = document.createElement('div');
       row.style.cssText = i === current ? 'color:#fff;font-weight:700' : 'opacity:0.7';
-      row.textContent = `${i === current ? '▶' : ' '} ${i + 1}. ${w.name} — ${summary(w)}`;
+      row.append(
+        document.createTextNode(`${i === current ? '▶' : ' '} `),
+        swatch(w),
+        document.createTextNode(`${i + 1}. ${w.name} — ${summary(w)}`),
+      );
       lineup.appendChild(row);
     });
   }

@@ -16,7 +16,7 @@ export function createSettingsPanel() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'opacity:0.7;margin-bottom:6px';
-  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝';
+  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · X: 탄착군 지우기 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝';
   root.appendChild(hint);
 
   // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다.
@@ -72,5 +72,15 @@ export function createSettingsPanel() {
   addSlider({ label: '정조준 FOV (°)', min: 30, max: 90, step: 1,
     get: () => R.adsFov, set: (v) => { R.adsFov = v; }, format: (v) => String(v) });
 
-  return { root, addSlider };
+  // 버튼 한 줄 추가 (T18: 탄착군 지우기). 잠금 해제 상태에서 누른다.
+  function addButton(label, onClick) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = 'display:block;width:100%;margin-top:8px;padding:5px 8px;font:13px system-ui;background:#3a5f8a;color:#fff;border:0;border-radius:4px;cursor:pointer';
+    btn.addEventListener('click', onClick);
+    root.appendChild(btn);
+    return btn;
+  }
+
+  return { root, addSlider, addButton };
 }
