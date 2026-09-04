@@ -15,6 +15,7 @@ import { createCrosshair } from './ui/crosshair.js';
 import { createHitmarker } from './ui/hitmarker.js';
 import { createDamageNumbers } from './ui/damageNumbers.js';
 import { createTuningPanel, restoreTuning } from './ui/tuningPanel.js';
+import { createPatternOverlay } from './ui/patternOverlay.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
 import { createSpread } from './weapon/spread.js';
@@ -93,6 +94,7 @@ const loadout = createLoadout(weapons, makeKit, (kit, i) => {
 });
 const view = createView(camera, () => loadout.current().ads);
 const crosshair = createCrosshair();
+const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
 // 키 1~4 직접 전환, 휠 순환 전환, R 재장전(현재 무기)
 ['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((code, i) => keyboard.onPress(code, () => loadout.select(i)));
@@ -101,15 +103,21 @@ keyboard.onPress('KeyR', () => { const k = loadout.current(); k.shooter.startRel
 // T18: 탄착군 지우기 — 잠금 중 X, 해제 중엔 왼쪽 위 패널 버튼
 keyboard.onPress('KeyX', () => marks.clear());
 settingsPanel.addButton('탄착군 지우기 (X)', () => marks.clear());
+// T19: 이론 궤적 켜기/끄기 — 잠금 중 P, 해제 중엔 패널 버튼 (사용자 지시 2026-09-04, SPEC '항상 켜짐' 변경)
+const overlayLabel = () => `이론 궤적: ${patternOverlay.state.enabled ? '켜짐' : '꺼짐'} (P)`;
+const overlayBtn = settingsPanel.addButton(overlayLabel(), () => { patternOverlay.toggle(); overlayBtn.textContent = overlayLabel(); });
+keyboard.onPress('KeyP', () => { patternOverlay.toggle(); overlayBtn.textContent = overlayLabel(); });
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, marks, targets, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
   const now = performance.now();
-  const { weapon, ads, recoil, spread, shooter } = loadout.current();
+  const kit = loadout.current();
+  const { weapon, ads, recoil, spread, shooter } = kit;
+  patternOverlay.beforeShoot(recoil);   // 첫 발 직전 조준 방향을 궤적 원점으로 (shooter.update보다 먼저)
   movement.update(dt);
   ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
   shooter.update(now, dt);
@@ -122,5 +130,6 @@ startLoop((dt) => {
   damageNumbers.update(dt);
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
+  patternOverlay.draw(kit);
   renderer.render(scene, camera);
 });
