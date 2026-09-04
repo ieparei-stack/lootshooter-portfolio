@@ -14,6 +14,7 @@ export const RANGE = {
   wallHeight: 4,
   wallThickness: 0.5,
   distances: [10, 25, 50],
+  doorHalf: 1.5,       // T25: 백스톱 가운데 문 (x −1.5 ~ +1.5, 상인방 없음). 뒤는 전투 구역(arena.js)
 };
 
 // 플레이어 시작 위치 = 사격 라인. −Z를 본다.
@@ -28,8 +29,9 @@ const zMid = (RANGE.zNear + RANGE.zFar) / 2;
 const depth = RANGE.zNear - RANGE.zFar;
 
 export const BLOCKS = [
-  // 벽 4면 — 안쪽 공간이 정확히 20 × 60
-  { pos: [0, 0, RANGE.zFar - t / 2],  size: [hw * 2 + t * 2, H, t], color: COLOR.wall },   // 백스톱
+  // 벽 4면 — 안쪽 공간이 정확히 20 × 60. 백스톱은 가운데 문(T25)을 빼고 좌·우 두 장
+  { pos: [-(hw + t + RANGE.doorHalf) / 2, 0, RANGE.zFar - t / 2], size: [hw + t - RANGE.doorHalf, H, t], color: COLOR.wall },   // 백스톱 좌
+  { pos: [ (hw + t + RANGE.doorHalf) / 2, 0, RANGE.zFar - t / 2], size: [hw + t - RANGE.doorHalf, H, t], color: COLOR.wall },   // 백스톱 우
   { pos: [0, 0, RANGE.zNear + t / 2], size: [hw * 2 + t * 2, H, t], color: COLOR.wall },   // 뒷벽
   { pos: [-(hw + t / 2), 0, zMid],    size: [t, H, depth], color: COLOR.wall },             // 좌측
   { pos: [ (hw + t / 2), 0, zMid],    size: [t, H, depth], color: COLOR.wall },             // 우측 = 탄착 벽 (안쪽 면 x = +10)

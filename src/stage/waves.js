@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { RANGE, floorLine, floorText } from './range.js';
+import { PLATFORM } from './arena.js';
 
 // 트리거 존 + 웨이브 (T23). 웨이브 구성은 코드에 둔다 (무기만 파일 — SPEC 3-1).
 //   armed     : 대기. 플레이어가 config.wave.triggerZ보다 안쪽(−Z)으로 들어서면 발동
@@ -7,22 +8,23 @@ import { RANGE, floorLine, floorText } from './range.js';
 //   wave      : 살아있는 몬스터가 0이 되면 → 마지막 웨이브면 clear, 아니면 countdown
 //   clear     : 끝. 더 이상 스폰하지 않는다. reset()으로 armed로 되돌린다 (몬스터 전부 제거)
 //   hold      : 플레이어 사망 중 (T24). 몬스터 전부 제거, 진행 정지. 부활 시 restartCurrent() → 같은 웨이브를 countdown부터
-// 사용자 결정(2026-09-04): 3웨이브 근접2 → 원거리2 → 근접2+원거리2, 25m 선 발동, 45~50m 끝에서 등장, 웨이브 간 5초 카운트다운.
-// 스폰 좌표는 50m 표적(x ±0.7, z −50)과 겹치지 않게 x ±2~4, z −45~−47 (Claude 임시 배치).
+// 사용자 결정(2026-09-04): 3웨이브 근접2 → 원거리2 → 근접2+원거리2, 웨이브 간 5초 카운트다운.
+// T25: 발동은 백스톱 문을 지나 구역(arena.js)에 들어설 때. 근접형은 바닥 끝, 원거리형은 몬스터 단 위(platform) 등장. 좌표는 Claude 임시.
+const onPlatform = { floorY: PLATFORM.height, bounds: PLATFORM.bounds };
 export const WAVES = [
-  [{ kind: 'melee', x: -3, z: -47 }, { kind: 'melee', x: 3, z: -47 }],
-  [{ kind: 'ranged', x: -3, z: -45 }, { kind: 'ranged', x: 3, z: -45 }],
-  [{ kind: 'melee', x: -4, z: -47 }, { kind: 'melee', x: 4, z: -47 },
-   { kind: 'ranged', x: -2, z: -45 }, { kind: 'ranged', x: 2, z: -45 }],
+  [{ kind: 'melee', x: -5, z: -78 }, { kind: 'melee', x: 5, z: -78 }],
+  [{ kind: 'ranged', x: -4, z: -82, ...onPlatform }, { kind: 'ranged', x: 4, z: -82, ...onPlatform }],
+  [{ kind: 'melee', x: -6, z: -78 }, { kind: 'melee', x: 6, z: -78 },
+   { kind: 'ranged', x: -3, z: -82, ...onPlatform }, { kind: 'ranged', x: 3, z: -82, ...onPlatform }],
 ];
 
 const COLOR = { zone: 0xff4040 };
 
-// 트리거 선 바닥 표시. 25m 흰 줄(z −25 ±0.06)과 겹치지 않게 그 안쪽에 붙인다.
+// 트리거 표시. 빨간 띠는 문 안쪽(문 폭), 글자는 사격장 쪽 문 앞에 두어 다가가며 읽힌다.
 function buildZoneMarks(scene, triggerZ) {
   if (!scene) return;
-  floorLine(scene, triggerZ - 0.4, RANGE.halfWidth * 2, 0.5, { color: COLOR.zone, transparent: true, opacity: 0.65 });
-  floorText(scene, '전투 구역 ▼', 0, triggerZ - 3, 4.5);
+  floorLine(scene, triggerZ - 0.4, RANGE.doorHalf * 2, 0.5, { color: COLOR.zone, transparent: true, opacity: 0.65 });
+  floorText(scene, '전투 구역 ▼', 0, RANGE.zFar + 2, 4);
 }
 
 function createHud() {
@@ -47,7 +49,7 @@ export function createWaveZone(scene, { player, monsters, waves = WAVES } = {}) 
   buildZoneMarks(scene, W.triggerZ);
 
   function spawnWave(i) {
-    for (const d of waves[i]) monsters.spawn(d.kind, d.x, d.z);
+    for (const d of waves[i]) monsters.spawn(d.kind, d.x, d.z, d);
     state.alive = monsters.aliveCount();   // 스폰 프레임의 HUD가 0으로 찍히지 않게
   }
 

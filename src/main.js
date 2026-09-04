@@ -4,6 +4,7 @@ import { createRenderer } from './core/renderer.js';
 import { startLoop } from './core/loop.js';
 import { createMouseLook, createKeyboard, createMouseButtons, createMouseWheel } from './core/input.js';
 import { buildRange, PLAYER_START } from './stage/range.js';
+import { buildArena } from './stage/arena.js';
 import { createTargets } from './stage/targets.js';
 import { createPlayerCamera } from './player/camera.js';
 import { createMovement } from './player/movement.js';
@@ -48,7 +49,7 @@ ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 // 사격장 + 표적 + 1인칭 카메라 + 입력 + 이동 + 조절 패널
-const blocks = buildRange(scene);
+const blocks = [...buildRange(scene), ...buildArena(scene)];   // 사격장 + 전투 구역 1 (T25)
 const targets = createTargets(scene);
 const player = createPlayerCamera(camera, PLAYER_START);
 const mouseLook = createMouseLook(canvas, (dx, dy) => player.rotate(dx, dy));

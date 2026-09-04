@@ -14,6 +14,7 @@ import { raycastWorld } from '../weapon/raycast.js';
 // 이동은 xz 평면, 벽 충돌은 플레이어와 같은 resolveCircleVsBlocks. 몬스터끼리·플레이어와는 원 분리.
 // onPlayerHit(damage, kind, monster)는 main.js가 넘긴다 — T22에서는 횟수 표시, T24에서 HP 감소로 연결.
 // 스폰은 T23부터 stage/waves.js가 spawn()/reset()/aliveCount()로 부른다.
+// T25: spawn 옵션 floorY(단 높이)·bounds(단 위 이동 제한). 단 위 몬스터는 블록 충돌 대신 bounds로 갇힌다 (단 자체가 블록이라 밀려나므로).
 
 const SHAPE = {
   melee:  { body: { w: 0.7, h: 1.6, d: 0.5 }, head: 0.3, color: { body: 0xb0453a, head: 0x7d2f27 } },
@@ -38,7 +39,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
 
   function eye() { return { x: player.state.x, y: player.state.eyeHeight, z: player.state.z }; }
 
-  function spawn(kind, x, z) {
+  function spawn(kind, x, z, { floorY = 0, bounds = null } = {}) {
     const S = SHAPE[kind];
     const C = config.monster[kind];
     const group = new THREE.Group();            // 위치·회전(플레이어를 향함)·쓰러짐
@@ -74,12 +75,12 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
       scene.add(laser);
     }
 
-    group.position.set(x, 0, z);
+    group.position.set(x, floorY, z);
     scene.add(group);
 
     const m = {
       id: `${kind}-${nextId++}`, kind, group, rig, bar, fill, laser,
-      pos: { x, z }, yaw: 0,
+      pos: { x, z }, yaw: 0, floorY, bounds,
       hp: C.hp, hpMax: C.hp, alive: true, dead: false,
       state: 'idle',       // idle | chase | attack(근접 준비) | cooldown | dead
       timer: 0,            // 상태 타이머 (s)
@@ -106,10 +107,11 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     const { body, head } = m.shape;
     const hw = Math.max(body.w, body.d) / 2;
     const [cb, ch] = m.colliders;
-    cb.min[0] = m.pos.x - hw; cb.min[1] = 0;      cb.min[2] = m.pos.z - hw;
-    cb.max[0] = m.pos.x + hw; cb.max[1] = body.h; cb.max[2] = m.pos.z + hw;
-    ch.min[0] = m.pos.x - head / 2; ch.min[1] = body.h;        ch.min[2] = m.pos.z - head / 2;
-    ch.max[0] = m.pos.x + head / 2; ch.max[1] = body.h + head; ch.max[2] = m.pos.z + head / 2;
+    const fy = m.floorY;
+    cb.min[0] = m.pos.x - hw; cb.min[1] = fy;          cb.min[2] = m.pos.z - hw;
+    cb.max[0] = m.pos.x + hw; cb.max[1] = fy + body.h; cb.max[2] = m.pos.z + hw;
+    ch.min[0] = m.pos.x - head / 2; ch.min[1] = fy + body.h;        ch.min[2] = m.pos.z - head / 2;
+    ch.max[0] = m.pos.x + head / 2; ch.max[1] = fy + body.h + head; ch.max[2] = m.pos.z + head / 2;
   }
 
   // 살아서 싸우는 수 (쓰러지는 연출 중은 제외) — 웨이브 종료 판정(T23)
@@ -128,7 +130,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
   // 몬스터 총구/눈(y MUZZLE_Y)에서 플레이어 눈까지 벽에 막히지 않는가
   function hasLOS(m) {
     const e = eye();
-    const o = { x: m.pos.x, y: MUZZLE_Y, z: m.pos.z };
+    const o = { x: m.pos.x, y: m.floorY + MUZZLE_Y, z: m.pos.z };
     const dx = e.x - o.x, dy = e.y - o.y, dz = e.z - o.z;
     const dist = Math.hypot(dx, dy, dz);
     if (dist < 1e-6) return true;
@@ -166,7 +168,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
 
   function reset(defs) {
     for (const m of list.slice()) remove(m);
-    for (const d of defs) spawn(d.kind, d.x, d.z);
+    for (const d of defs) spawn(d.kind, d.x, d.z, d);
   }
 
   const _dir = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -187,7 +189,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     const e = eye();
     const dx = e.x - m.pos.x, dz = e.z - m.pos.z;
     const d = Math.hypot(dx, dz) || 1;
-    const muzzle = { x: m.pos.x + dx / d * MUZZLE_FWD, y: MUZZLE_Y, z: m.pos.z + dz / d * MUZZLE_FWD };
+    const muzzle = { x: m.pos.x + dx / d * MUZZLE_FWD, y: m.floorY + MUZZLE_Y, z: m.pos.z + dz / d * MUZZLE_FWD };
     const vx = e.x - muzzle.x, vy = e.y - muzzle.y, vz = e.z - muzzle.z;
     const len = Math.hypot(vx, vy, vz) || 1;
     const dir = { x: vx / len, y: vy / len, z: vz / len };
@@ -269,7 +271,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
             m.aimT = 0;
             m.cooldownT = C.cooldown;
           } else {
-            const muzzle = { x: m.pos.x + ux * MUZZLE_FWD, y: MUZZLE_Y, z: m.pos.z + uz * MUZZLE_FWD };
+            const muzzle = { x: m.pos.x + ux * MUZZLE_FWD, y: m.floorY + MUZZLE_Y, z: m.pos.z + uz * MUZZLE_FWD };
             setLaser(m, muzzle, laserEnd(e), COLOR.laser);
           }
         } else {
@@ -282,7 +284,12 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
       if (mvx || mvz) {
         m.pos.x += mvx * C.speed * dt;
         m.pos.z += mvz * C.speed * dt;
-        resolveCircleVsBlocks(m.pos, R, blocks);
+        if (!m.bounds) resolveCircleVsBlocks(m.pos, R, blocks);
+      }
+      if (m.bounds) {   // 단 위: 가장자리 안쪽에 가둔다
+        const b = m.bounds;
+        m.pos.x = Math.min(b.maxX - R, Math.max(b.minX + R, m.pos.x));
+        m.pos.z = Math.min(b.maxZ - R, Math.max(b.minZ + R, m.pos.z));
       }
       const minD = R + PLAYER_RADIUS;
       const ddx = m.pos.x - e.x, ddz = m.pos.z - e.z;
@@ -310,7 +317,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     // 씬 반영 + 콜라이더 + HP 바
     for (const m of list) {
       if (!m.alive) continue;
-      m.group.position.set(m.pos.x, 0, m.pos.z);
+      m.group.position.set(m.pos.x, m.floorY, m.pos.z);
       m.group.rotation.y = m.yaw;
       if (!m.dead) updateColliders(m);
       const ratio = m.hp / m.hpMax;

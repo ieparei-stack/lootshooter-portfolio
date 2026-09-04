@@ -60,7 +60,7 @@ export const config = {
   },
   // 4단계 트리거 존 + 웨이브 (T23). 웨이브 구성 자체는 stage/waves.js 코드에 둔다.
   wave: {
-    triggerZ: -25,              // 이 z보다 안쪽(−Z)으로 들어서면 발동 (사용자 결정: 25m 선)
+    triggerZ: -56,              // 이 z보다 안쪽(−Z)으로 들어서면 발동 — 백스톱 문(z −55~−55.5)을 지나 구역 안 (T25. T23 때는 25m 선)
     firstDelay: 2,              // 발동 후 첫 웨이브까지 (s) — Claude 임시 수치
     betweenDelay: 5,            // 웨이브 처치 후 다음 웨이브까지 (s) — 사용자 결정
   },
