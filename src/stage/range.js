@@ -55,19 +55,21 @@ export function textTexture(text, { w = 512, h = 128, font = 'bold 96px system-u
 
 // 바닥 장식 (블록 아님 — 충돌·레이캐스트에 안 잡힘). 바닥 평면(y 0)과 z-fighting을 피하려고
 // y 0.01 + polygonOffset. 먼 거리(50m)에서는 0.001 차이가 깊이 정밀도보다 작아 사라진다 (헤드리스 확인).
-const FLOOR_Y = 0.01;
-const floorMat = (opts) => new THREE.MeshBasicMaterial({ ...opts, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-function floorLine(scene, z, width, thickness = 0.12) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(width, thickness), floorMat({ color: COLOR.line }));
+// T23: waves.js가 트리거 존 표시에 같은 도구를 쓰므로 export.
+export const FLOOR_Y = 0.01;
+export const floorMat = (opts) => new THREE.MeshBasicMaterial({ ...opts, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+export function floorLine(scene, z, width, thickness = 0.12, opts = {}) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(width, thickness), floorMat({ color: COLOR.line, ...opts }));
   m.rotation.x = -Math.PI / 2;
   m.position.set(0, FLOOR_Y, z);
   scene.add(m);
+  return m;
 }
 // 글자를 사거리 방향으로 4배 늘린다(도로 표지처럼) — 서서 보면 바닥이 얕은 각도로 눌려 보이므로 늘려야 원래 비율로 읽힌다.
 // faceYaw: 글자 위쪽이 향하는 방향 (° , 0 = −Z 사거리 방향, −90 = +X 우측 벽 방향). 읽는 사람이 그쪽을 볼 때 바로 읽힌다.
-function floorText(scene, text, x, z, width = 3, stretch = 4, faceYaw = 0) {
+export function floorText(scene, text, x, z, width = 3, stretch = 4, faceYaw = 0) {
   const tex = textTexture(text);
-  if (!tex) return;
+  if (!tex) return null;
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(width, width / 4 * stretch),
     floorMat({ map: tex, transparent: true }),
@@ -75,6 +77,7 @@ function floorText(scene, text, x, z, width = 3, stretch = 4, faceYaw = 0) {
   m.rotation.set(-Math.PI / 2, faceYaw * Math.PI / 180, 0, 'YXZ');   // 눕힌 뒤 세로축으로 돌린다
   m.position.set(x, FLOOR_Y, z);
   scene.add(m);
+  return m;
 }
 
 // BLOCKS를 메시로 만들고 바닥 표시를 그린다. 반환값은 BLOCKS 그대로(충돌·레이캐스트용).

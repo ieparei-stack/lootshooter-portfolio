@@ -1,0 +1,94 @@
+import { config } from '../config.js';
+import { RANGE, floorLine, floorText } from './range.js';
+
+// 트리거 존 + 웨이브 (T23). 웨이브 구성은 코드에 둔다 (무기만 파일 — SPEC 3-1).
+//   armed     : 대기. 플레이어가 config.wave.triggerZ보다 안쪽(−Z)으로 들어서면 발동
+//   countdown : timer가 0이 되면 다음 웨이브 스폰. 첫 웨이브 firstDelay, 이후 betweenDelay
+//   wave      : 살아있는 몬스터가 0이 되면 → 마지막 웨이브면 clear, 아니면 countdown
+//   clear     : 끝. 더 이상 스폰하지 않는다. reset()으로 armed로 되돌린다 (몬스터 전부 제거)
+// 사용자 결정(2026-09-04): 3웨이브 근접2 → 원거리2 → 근접2+원거리2, 25m 선 발동, 45~50m 끝에서 등장, 웨이브 간 5초 카운트다운.
+// 스폰 좌표는 50m 표적(x ±0.7, z −50)과 겹치지 않게 x ±2~4, z −45~−47 (Claude 임시 배치).
+export const WAVES = [
+  [{ kind: 'melee', x: -3, z: -47 }, { kind: 'melee', x: 3, z: -47 }],
+  [{ kind: 'ranged', x: -3, z: -45 }, { kind: 'ranged', x: 3, z: -45 }],
+  [{ kind: 'melee', x: -4, z: -47 }, { kind: 'melee', x: 4, z: -47 },
+   { kind: 'ranged', x: -2, z: -45 }, { kind: 'ranged', x: 2, z: -45 }],
+];
+
+const COLOR = { zone: 0xff4040 };
+
+// 트리거 선 바닥 표시. 25m 흰 줄(z −25 ±0.06)과 겹치지 않게 그 안쪽에 붙인다.
+function buildZoneMarks(scene, triggerZ) {
+  if (!scene) return;
+  floorLine(scene, triggerZ - 0.4, RANGE.halfWidth * 2, 0.5, { color: COLOR.zone, transparent: true, opacity: 0.65 });
+  floorText(scene, '전투 구역 ▼', 0, triggerZ - 3, 4.5);
+}
+
+function createHud() {
+  if (typeof document === 'undefined') return null;
+  const el = document.createElement('div');
+  el.id = 'waveHud';
+  el.style.cssText = [
+    'position:fixed', 'top:12px', 'left:50%', 'transform:translateX(-50%)', 'z-index:10',
+    'padding:8px 16px', 'background:rgba(0,0,0,0.55)', 'color:#eee',
+    'font:700 18px/1.3 system-ui, sans-serif', 'border-radius:6px', 'user-select:none',
+    'white-space:nowrap', 'font-variant-numeric:tabular-nums',
+  ].join(';');
+  el.hidden = true;
+  document.body.appendChild(el);
+  return el;
+}
+
+export function createWaveZone(scene, { player, monsters, waves = WAVES } = {}) {
+  const W = config.wave;
+  const state = { phase: 'armed', index: -1, timer: 0, alive: 0 };   // index = 현재(또는 다음에 뜰) 웨이브 번호 0~
+  const hud = createHud();
+  buildZoneMarks(scene, W.triggerZ);
+
+  function spawnWave(i) {
+    for (const d of waves[i]) monsters.spawn(d.kind, d.x, d.z);
+    state.alive = monsters.aliveCount();   // 스폰 프레임의 HUD가 0으로 찍히지 않게
+  }
+
+  function setPhase(phase, timer = 0) { state.phase = phase; state.timer = timer; }
+
+  function update(dt) {
+    if (state.phase === 'armed') {
+      if (player.state.z < W.triggerZ) { state.index = 0; setPhase('countdown', W.firstDelay); }
+    } else if (state.phase === 'countdown') {
+      state.timer -= dt;
+      if (state.timer <= 0) { spawnWave(state.index); setPhase('wave'); }
+    } else if (state.phase === 'wave') {
+      state.alive = monsters.aliveCount();
+      if (state.alive === 0) {
+        if (state.index >= waves.length - 1) setPhase('clear');
+        else { state.index++; setPhase('countdown', W.betweenDelay); }
+      }
+    }
+    draw();
+  }
+
+  let lastText = null;
+  function draw() {
+    if (!hud) return;
+    const n = waves.length;
+    let text = null;
+    if (state.phase === 'countdown') text = `웨이브 ${state.index + 1}/${n} — ${Math.max(0, state.timer).toFixed(1)}초 후 등장`;
+    else if (state.phase === 'wave') text = `웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive}`;
+    else if (state.phase === 'clear') text = `구역 클리어 — 웨이브 ${n}/${n} 완료`;
+    if (text === lastText) return;
+    lastText = text;
+    hud.hidden = text === null;
+    if (text !== null) hud.textContent = text;
+  }
+
+  // 몬스터 전부 제거 + 대기 상태로. 플레이어가 25m 선 안쪽에 서 있으면 다음 프레임에 바로 다시 발동한다.
+  function reset() {
+    monsters.reset([]);
+    state.index = -1; state.alive = 0;
+    setPhase('armed');
+    draw();
+  }
+
+  return { state, update, reset, waves };
+}

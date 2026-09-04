@@ -55,4 +55,10 @@ export const config = {
       cooldown: 1.5,            // 발사 후 다음 조준까지 (s)
     },
   },
+  // 4단계 트리거 존 + 웨이브 (T23). 웨이브 구성 자체는 stage/waves.js 코드에 둔다.
+  wave: {
+    triggerZ: -25,              // 이 z보다 안쪽(−Z)으로 들어서면 발동 (사용자 결정: 25m 선)
+    firstDelay: 2,              // 발동 후 첫 웨이브까지 (s) — Claude 임시 수치
+    betweenDelay: 5,            // 웨이브 처치 후 다음 웨이브까지 (s) — 사용자 결정
+  },
 };

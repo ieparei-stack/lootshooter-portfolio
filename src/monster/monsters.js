@@ -13,6 +13,7 @@ import { raycastWorld } from '../weapon/raycast.js';
 // 표적(targets.js)과 같은 인터페이스: colliders() / applyHit(hit, weapon) / update(dt, camera). shooter는 hit.collider.system으로 이 모듈을 찾는다.
 // 이동은 xz 평면, 벽 충돌은 플레이어와 같은 resolveCircleVsBlocks. 몬스터끼리·플레이어와는 원 분리.
 // onPlayerHit(damage, kind, monster)는 main.js가 넘긴다 — T22에서는 횟수 표시, T24에서 HP 감소로 연결.
+// 스폰은 T23부터 stage/waves.js가 spawn()/reset()/aliveCount()로 부른다.
 
 const SHAPE = {
   melee:  { body: { w: 0.7, h: 1.6, d: 0.5 }, head: 0.3, color: { body: 0xb0453a, head: 0x7d2f27 } },
@@ -33,7 +34,7 @@ const PLAYER_RADIUS = 0.35;    // config.player.radius와 같음 — 몬스터�
 export function createMonsters(scene, { blocks = [], player, tracers = null, onPlayerHit = null } = {}) {
   const list = [];
   let nextId = 1;
-  const api = { list, colliders, applyHit, update, spawn, reset, remove, hasLOS };
+  const api = { list, colliders, applyHit, update, spawn, reset, remove, hasLOS, aliveCount };
 
   function eye() { return { x: player.state.x, y: player.state.eyeHeight, z: player.state.z }; }
 
@@ -109,6 +110,13 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     cb.max[0] = m.pos.x + hw; cb.max[1] = body.h; cb.max[2] = m.pos.z + hw;
     ch.min[0] = m.pos.x - head / 2; ch.min[1] = body.h;        ch.min[2] = m.pos.z - head / 2;
     ch.max[0] = m.pos.x + head / 2; ch.max[1] = body.h + head; ch.max[2] = m.pos.z + head / 2;
+  }
+
+  // 살아서 싸우는 수 (쓰러지는 연출 중은 제외) — 웨이브 종료 판정(T23)
+  function aliveCount() {
+    let n = 0;
+    for (const m of list) if (m.alive && !m.dead) n++;
+    return n;
   }
 
   function colliders() {

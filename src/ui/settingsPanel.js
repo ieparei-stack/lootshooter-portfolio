@@ -16,7 +16,7 @@ export function createSettingsPanel() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'opacity:0.7;margin-bottom:6px';
-  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · X: 탄착군 지우기 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝 · 흰 궤적: 이론 반동(무작위 없음) · P: 궤적 켜기/끄기 · M: 몬스터 리셋 (사격장 끝에 근접형·원거리형 1마리씩, 30m 안으로 가면 반응)';
+  hint.textContent = '클릭: 마우스 잠금 · ESC: 해제 (슬라이더는 해제 상태에서 조절) · 좌클릭: 사격 · 우클릭 유지: 정조준 · R: 재장전 · X: 탄착군 지우기 · 1~4 / 휠: 무기 전환 · ESC 후 왼쪽 아래: 무기 튜닝 · 흰 궤적: 이론 반동(무작위 없음) · P: 궤적 켜기/끄기 · 25m 빨간 선을 넘으면 웨이브 시작 (3웨이브, 사격장 끝에서 등장) · M: 구역 리셋';
   root.appendChild(hint);
 
   // 슬라이더 한 줄 추가. get/set으로 값을 읽고 쓴다. parent를 주면 그 안에 (접이식 그룹용, T22).
