@@ -46,6 +46,7 @@ const SCHEMA = [
   { path: 'id',   type: 'string', def: 'std' },
   { path: 'name', type: 'string', def: '기준 AR' },
   { path: 'tag',  type: 'string', def: '' },
+  { path: 'desc', type: 'string', def: '', optional: true },   // T26.3 전환 카드 한 문장. 없어도 경고 없음 (카드가 tag로 대체)
   { path: 'rpm',  type: 'number', def: 660, min: 1 },
   { path: 'mag',  type: 'number', def: 30, min: 1 },
   { path: 'pattern.mode',  type: 'enum', values: ['curve', 'array'], def: 'curve' },
@@ -97,7 +98,10 @@ function checkField(w, rule, label, warnings) {
   const v = getPath(w, rule.path);
   const at = `${label}.${rule.path}`;
   let bad = null;
-  if (v === undefined || v === null || v === '') bad = '값이 없어';
+  if (v === undefined || v === null || v === '') {
+    if (rule.optional) { setPath(w, rule.path, rule.def); return; }   // 선택 항목: 조용히 기본값
+    bad = '값이 없어';
+  }
   else if (rule.type === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) bad = `숫자가 아니어서(${JSON.stringify(v)})`;
   else if (rule.type === 'boolean' && typeof v !== 'boolean') bad = `true/false가 아니어서(${JSON.stringify(v)})`;
   else if (rule.type === 'string' && typeof v !== 'string') bad = `문자열이 아니어서(${JSON.stringify(v)})`;

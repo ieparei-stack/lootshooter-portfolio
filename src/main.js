@@ -30,6 +30,7 @@ import { createHealth } from './player/health.js';
 import { createPlayerHud } from './ui/playerHud.js';
 import { createPrompt } from './ui/prompt.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
+import { createWeaponCard } from './ui/weaponCard.js';
 import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
@@ -117,11 +118,15 @@ const tuningPanel = createTuningPanel({
   weapons, origs: tuning.origs, arrMuls: tuning.arrMuls,
   onChange: (w) => { weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
 });
+const weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장착 때는 안 띄운다)
+let loadoutReady = false;
 const loadout = createLoadout(weapons, makeKit, (kit, i) => {
+  if (loadoutReady) weaponCard.show(kit.weapon);
   weaponInfo.set(kit.weapon);
   weaponInfo.setLineup(weapons, i);
   tuningPanel.show(kit, i);
 });
+loadoutReady = true;
 const view = createView(camera, () => loadout.current().ads);
 const crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
@@ -166,7 +171,7 @@ tuningPanel.setVisible(false);
 const pauseMenu = createPauseMenu({
   canvas, mouseLook, onReset: resetZone,
   panels: { settings: settingsPanel, tuning: tuningPanel },
-  onStateChange: (mode) => { layoutPanels(); crosshair.ring.hidden = mode !== 'closed'; prompt.el.style.visibility = mode === 'closed' ? '' : 'hidden'; },   // 메뉴 중엔 조준점·프롬프트 숨김 (카드와 겹침)
+  onStateChange: (mode) => { layoutPanels(); crosshair.ring.hidden = mode !== 'closed'; prompt.el.style.visibility = weaponCard.root.style.visibility = mode === 'closed' ? '' : 'hidden'; },   // 메뉴 중엔 조준점·프롬프트 숨김 (카드와 겹침)
 });
 // 시작 안내: 첫 잠금 전까지 중앙 프롬프트 (잠기면 지움)
 prompt.hold('클릭하여 시작');
@@ -174,7 +179,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, settingsPanel, tuningPanel, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, settingsPanel, tuningPanel, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -198,6 +203,7 @@ startLoop((dt) => {
   damageNumbers.update(dt);
   playerHud.update(dt);
   prompt.update(dt);
+  weaponCard.update(dt);
   playerHud.setHp(health.state.hp, health.state.hpMax);
   playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);
