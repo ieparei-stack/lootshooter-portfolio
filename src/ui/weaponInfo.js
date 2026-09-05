@@ -1,8 +1,7 @@
 import { colorOf } from './weaponColors.js';
 
-// 현재 무기 표시 (오른쪽 아래). 탄약 카운터 + 재장전 진행 바 + 이름 + 주요 수치.
-// 아래에 사격장 라인업(4정)의 이름과 핵심 수치를 항상 나열하고 현재 무기를 강조한다 (T15).
-// 이름과 라인업 앞의 색 네모 = 그 무기의 탄착 자국 색 (T18).
+// 무기 슬롯 (오른쪽 아래). T26.1부터 아이콘(색 네모 = 탄착 자국 색, T18) + 이름 + 탄창/예비(∞) + 재장전 진행 바만 보인다.
+// 수치 7줄(stats)과 라인업(lineup)은 숨겨 두고 계속 갱신한다 — T26.3 카드·T26.4 세팅 패널이 가져다 쓴다.
 export function createWeaponInfo() {
   const root = document.createElement('div');
   root.id = 'weaponInfo';
@@ -33,16 +32,18 @@ export function createWeaponInfo() {
   root.appendChild(name);
   root.appendChild(stats);
   root.appendChild(lineup);
+  stats.hidden = true;   // T26.1: 상시 HUD에서 뺌
+  lineup.hidden = true;
 
   // 무기 색 스와치 (T18: 탄착 자국과 같은 색)
   function swatch(w) {
     const s = document.createElement('span');
-    s.style.cssText = `display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;background:${colorOf(w)}`;
+    s.style.cssText = `display:inline-block;width:14px;height:14px;margin-right:8px;border-radius:3px;vertical-align:-2px;background:${colorOf(w)}`;
     return s;
   }
 
   function set(w) {
-    name.replaceChildren(swatch(w), document.createTextNode(`${w.name}  ·  ${w.tag}`));
+    name.replaceChildren(swatch(w), document.createTextNode(w.name));   // T26.1: 태그 제거
     const p = w.pattern;
     const patternLine = p.mode === 'array'
       ? `패턴 고정 배열 ${p.arr.length}발`
@@ -84,7 +85,7 @@ export function createWeaponInfo() {
   let lastText = '', lastW = -1;
   // mag: 현재 탄, magSize: 탄창, progress: 재장전 진행도 0~1 또는 null
   function setAmmo(mag, magSize, progress) {
-    const text = progress === null ? `${mag} / ${magSize}` : `재장전…  ${mag} / ${magSize}`;
+    const text = `${mag} / ∞`;   // T26.1: 탄창/예비(무한). 탄창 크기는 무기 카드(T26.3)에. 재장전은 진행바만
     if (text !== lastText) {
       lastText = text;
       ammo.textContent = text;

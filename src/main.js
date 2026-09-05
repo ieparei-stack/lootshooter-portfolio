@@ -28,6 +28,7 @@ import { createLoadout } from './weapon/loadout.js';
 import { createMonsters } from './monster/monsters.js';
 import { createHealth } from './player/health.js';
 import { createPlayerHud } from './ui/playerHud.js';
+import { createPrompt } from './ui/prompt.js';
 import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
@@ -74,6 +75,7 @@ const damageNumbers = createDamageNumbers();
 // 몬스터 공격 → health.damage → HUD(비네트·방향 호·HP 바). HP 0 → 웨이브 정지(몬스터 제거) → 2초 뒤 같은 자리 부활 → 같은 웨이브 재스폰.
 const hitsTaken = { count: 0, text: null };
 const playerHud = createPlayerHud();
+const prompt = createPrompt();   // 중앙 상황 프롬프트 (T26.1)
 let stage = null;   // 아래에서 만든다 (health 콜백이 참조)
 const health = createHealth({
   player,
@@ -89,7 +91,7 @@ const monsters = createMonsters(scene, {
     if (hitsTaken.text) hitsTaken.text.textContent = `받은 공격: ${hitsTaken.count}회 (마지막 −${damage} ${kind === 'melee' ? '근접' : kind === 'boss' ? '보스' : '원거리'})`;
   },
 });
-stage = createStage(scene, { player, monsters, blocks });   // 구역 1~3 + 보스 방, 문 열림
+stage = createStage(scene, { player, monsters, blocks, prompt });   // 구역 1~3 + 보스 방, 문 열림
 // 사망 중에는 사격·정조준 입력을 막는다 (버튼 상태를 감싼다)
 const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b) };
 
@@ -155,10 +157,13 @@ settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
 window.addEventListener('resize', layoutPanels);
+// T26.1: 상시 HUD 비우기 — 설정 패널·튜닝 패널은 만들어 두고 숨긴다 (T26.2 일시정지 메뉴가 다시 연다). 키(M·P·X)는 계속 동작
+settingsPanel.setVisible(false);
+tuningPanel.setVisible(false);
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, settingsPanel, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
@@ -181,6 +186,7 @@ startLoop((dt) => {
   view.update();
   damageNumbers.update(dt);
   playerHud.update(dt);
+  prompt.update(dt);
   playerHud.setHp(health.state.hp, health.state.hpMax);
   playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);

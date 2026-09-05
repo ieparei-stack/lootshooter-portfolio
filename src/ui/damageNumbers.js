@@ -8,7 +8,7 @@ export function createDamageNumbers(poolSize = 20) {
   const root = document.createElement('div');
   root.id = 'damageNumbers';
   root.style.cssText = [
-    'position:fixed', 'top:120px', 'right:24px', 'z-index:6', 'pointer-events:none',
+    'position:fixed', 'top:44px', 'right:24px', 'z-index:6', 'pointer-events:none',   // T26.1: 경고 배지(우상단 22px) 아래
     'display:flex', 'flex-direction:column', 'align-items:flex-end', 'gap:2px',
   ].join(';');
   document.body.appendChild(root);

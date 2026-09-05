@@ -57,21 +57,14 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
     }
   }
 
-  // 진행 중이면 HUD 문구, 아니면 null (armed·hold). clear 문구는 stage가 마지막으로 클리어한 존 것만 보여준다
+  // 진행 중(countdown·wave)일 때만 상단 한 줄 문구, 아니면 null. 클리어 문구는 clearText()로 — stage가 중앙 프롬프트에 띄운다 (T26.1)
   function hudText() {
     const n = waves.length;
     if (state.phase === 'countdown') return `${label} · 웨이브 ${state.index + 1}/${n} — ${Math.max(0, state.timer).toFixed(1)}초 후 등장`;
-    if (state.phase === 'wave') {
-      if (boss) {
-        const b = monsters.list.find((m) => m.kind === 'boss' && m.alive && !m.dead);
-        const pct = b ? Math.ceil(b.hp / b.hpMax * 100) : 0;
-        return `보스 · HP ${pct}% · 남은 몬스터 ${state.alive}`;
-      }
-      return `${label} · 웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive}`;
-    }
-    if (state.phase === 'clear') return boss ? '보스 처치 — 데모 완료' : `${label} 클리어 — 앞으로 가세요`;
+    if (state.phase === 'wave') return boss ? `보스 · 남은 몬스터 ${state.alive}` : `${label} · 웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive}`;
     return null;
   }
+  function clearText() { return boss ? '보스 처치 — 데모 완료' : `${label} 클리어 — 앞으로 가세요`; }
   const active = () => state.phase === 'countdown' || state.phase === 'wave' || state.phase === 'hold';
 
   // T24: 사망 → 현재 웨이브 몬스터 전부 제거하고 멈춘다. 교전 중이 아니면 무시
@@ -95,5 +88,5 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
     setPhase('armed');
   }
 
-  return { state, update, reset, holdForRespawn, restartCurrent, hudText, active, waves, label, triggerZ, endZ };
+  return { state, update, reset, holdForRespawn, restartCurrent, hudText, clearText, active, waves, label, boss, triggerZ, endZ };
 }

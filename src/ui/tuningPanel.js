@@ -268,5 +268,7 @@ export function createTuningPanel({ weapons, origs, arrMuls, onChange }) {
     render();
   }
 
-  return { root, show, render };
+  function setVisible(v) { root.hidden = !v; }   // T26.1: 상시 HUD에서 뺀다 (T26.2 '무기 세팅' 버튼이 켠다)
+
+  return { root, show, render, setVisible };
 }

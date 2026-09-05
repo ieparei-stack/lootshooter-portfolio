@@ -112,5 +112,8 @@ export function createSettingsPanel() {
     };
   }
 
-  return { root, addSlider, addButton, addGroup };
+  // T26.1: 상시 HUD에서 뺀다. T26.2 일시정지 메뉴의 '디버그'가 setVisible(true)로 다시 보인다
+  function setVisible(v) { root.hidden = !v; }
+
+  return { root, addSlider, addButton, addGroup, setVisible };
 }
