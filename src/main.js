@@ -123,8 +123,8 @@ const view = createView(camera, () => loadout.current().ads);
 const crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
-// 키 1~4 직접 전환, 휠 순환 전환, R 재장전(현재 무기)
-['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((code, i) => keyboard.onPress(code, () => loadout.select(i)));
+// 키 1~3 직접 전환 (라인업 3정 — COD형 제외, 사용자 결정 2026-09-05), 휠 순환 전환, R 재장전(현재 무기)
+['Digit1', 'Digit2', 'Digit3'].forEach((code, i) => keyboard.onPress(code, () => loadout.select(i)));
 createMouseWheel(mouseLook, (step) => (step > 0 ? loadout.next() : loadout.prev()));
 keyboard.onPress('KeyR', () => { const k = loadout.current(); k.shooter.startReload(k.shooter.state.now); });
 // T18: 탄착군 지우기 — 잠금 중 X, 해제 중엔 왼쪽 위 패널 버튼

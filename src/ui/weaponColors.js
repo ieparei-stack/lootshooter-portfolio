@@ -3,7 +3,6 @@
 export const WEAPON_COLORS = {
   cs: '#ff4d4d',     // 빨강
   pubg: '#3d8bff',   // 파랑
-  cod: '#2ecc71',    // 초록
   d2: '#ffb84d',     // 주황
 };
 export const DEFAULT_COLOR = '#444444';

@@ -44,25 +44,6 @@
       "moveSpreadMul": 2.0
     },
     {
-      "id": "cod",
-      "name": "COD형 AR",
-      "tag": "LOW KICK",
-      "rpm": 750,
-      "mag": 30,
-      "pattern": { "mode": "curve", "v0": 0.15, "vG": 0.014, "vMax": 0.30, "h0": 0.034, "hMode": "fixed-alt", "hMax": 0.05 },
-      "randV": 0.12,
-      "randH": 0.05,
-      "recovery": { "delay": 60, "speed": 16 },
-      "spread": { "base": 0.50, "bloom": 0.026, "max": 0.95, "decay": 2.0 },
-      "ads": { "allowed": true, "recoil": 0.60, "spread": 0.12, "time": 220 },
-      "cap": { "on": false, "deg": 4 },
-      "damage": 200,
-      "headshotMul": 1.5,
-      "falloff": { "start": 20, "end": 50, "minRatio": 0.5 },
-      "reloadTime": 2.0,
-      "moveSpreadMul": 2.0
-    },
-    {
       "id": "d2",
       "name": "데스티니형 AR",
       "tag": "RECENTER",
