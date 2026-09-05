@@ -21,7 +21,7 @@ const FLOW = [
   '마지막은 보스. 단 위에서 조준선 2개로 쏘고, 체력이 반 아래면 부하를 부릅니다.',
   'HP가 0이 되면 2초 뒤 그 자리에서 부활하고 현재 웨이브가 다시 시작됩니다.',
 ];
-const PANEL_TITLE = { settings: '플레이어 세팅', tuning: '무기 세팅 (임시 — 튜닝 패널)' };
+const PANEL_TITLE = { settings: '플레이어 세팅', tuning: '무기 세팅' };
 
 export function createPauseMenu({ canvas, mouseLook, onReset = null, panels = {}, onStateChange = null } = {}) {
   const state = { mode: 'closed', panel: null, returnTo: 'closed' };   // returnTo = 패널을 닫으면 돌아갈 모드 (바 버튼은 카드 없이도 눌린다)

@@ -1,15 +1,16 @@
-// 무기 튜닝 패널 (T17.5). 현재 무기의 값을 슬라이더로 바꿔 즉시 느껴본다.
+// 무기 튜닝 로직 (T17.5 → T26.4에서 DOM은 weaponPanel.js로 옮기고 여기는 순수 로직만 남김).
 //   - 살아 있는 weapon 객체를 직접 수정한다. recoil/spread/ads/shooter는 매 프레임 weapon.*를 읽으므로 바로 반영.
 //     반동 패턴만 생성 시 1회 컴파일이라 pattern.* 변경 후 recoil.recompile()을 부른다.
-//   - CS형(고정 배열)은 30발 배열에 수직/수평 배율을 곱한다. 새 필드 없이 배열 자체가 결과다.
-//   - 파일 값(origs)과 다른 항목은 ● 표시. "JSON 복사"로 weapons.json 항목 형식을 얻는다.
-//   - localStorage(tuning.v1)에 보존해 새로고침에도 유지. "파일 값으로 초기화"가 지운다.
-// 슬라이더는 설정 패널과 같이 ESC로 마우스 잠금을 푼 상태에서 조절한다.
+//   - 가상 값(파일에 없음): arrMul.v/h = 고정 배열 30발 전체 배율, curveMul.v/h = curve 무기 v0·vG·vMax / h0·hMax 배율 (T26.4).
+//     둘 다 **파일 값(orig) 기준**으로 곱한다. 배율을 움직이면 개별 값을 파일값×배율로 덮어쓴다.
+//   - 파일 값(origs)과 다른 항목은 diffPaths로 찾는다. toJson으로 weapons.json 항목 형식을 얻는다.
+//   - localStorage(tuning.v1)에 보존. 항목 형식 { weapon, arrMul, curveMul } — curveMul은 T26.4에서 추가, 없으면 {1,1} (옛 저장분 호환).
 import { loadWeapons, cloneWeapon, getPath, setPath } from '../weapon/weaponData.js';
 
 export const STORAGE_KEY = 'tuning.v1';
 
-// 슬라이더 정의. when: 'curve' | 'array' (pattern.mode) | 'ads' (ads.allowed) | 'cap' (cap.on)
+// 슬라이더 정의 (T17.5의 30개). when: 'curve' | 'array' (pattern.mode) | 'ads' (ads.allowed) | 'cap' (cap.on)
+// weaponPanel.js가 path로 찾아 탭에 배치한다. 누락 검사는 이 목록 기준.
 export const FIELDS = [
   { group: '기본', path: 'rpm', label: 'RPM', min: 300, max: 1200, step: 10 },
   { group: '기본', path: 'mag', label: '탄창 (발)', min: 10, max: 60, step: 1 },
@@ -40,7 +41,11 @@ export const FIELDS = [
   { group: 'cap', path: 'cap.deg', label: '상한 (°)', min: 0, max: 15, step: 0.5, when: 'cap' },
 ];
 
-function visible(field, w) {
+// curve 배율이 곱하는 개별 경로
+export const CURVE_V_PATHS = ['pattern.v0', 'pattern.vG', 'pattern.vMax'];
+export const CURVE_H_PATHS = ['pattern.h0', 'pattern.hMax'];
+
+export function fieldVisible(field, w) {
   if (!field.when) return true;
   if (field.when === 'curve') return w.pattern.mode === 'curve';
   if (field.when === 'array') return w.pattern.mode === 'array';
@@ -53,17 +58,35 @@ const round4 = (n) => Math.round(n * 10000) / 10000;
 
 // ---- 순수 로직 (DOM 없음, Node 테스트 대상) ----
 
-// 값 하나 적용. orig = 파일 값(배열 배율의 기준). ctx = { arrMul, recoil, shooter } (recoil/shooter는 없어도 됨)
+// 값 하나 적용. orig = 파일 값(배율의 기준). ctx = { arrMul, curveMul, recoil, shooter } (recoil/shooter는 없어도 됨)
 export function applyTuning(weapon, orig, path, value, ctx = {}) {
   if (path === 'arrMul.v' || path === 'arrMul.h') {
     const m = ctx.arrMul || (ctx.arrMul = { v: 1, h: 1 });
     m[path === 'arrMul.v' ? 'v' : 'h'] = value;
     weapon.pattern.arr = orig.pattern.arr.map(([v, h]) => [round4(v * m.v), round4(h * m.h)]);
+  } else if (path === 'curveMul.v' || path === 'curveMul.h') {
+    const m = ctx.curveMul || (ctx.curveMul = { v: 1, h: 1 });
+    const axis = path === 'curveMul.v' ? 'v' : 'h';
+    m[axis] = value;
+    for (const p of axis === 'v' ? CURVE_V_PATHS : CURVE_H_PATHS) setPath(weapon, p, round4(getPath(orig, p) * value));
   } else {
     setPath(weapon, path, value);
   }
-  if (path.startsWith('pattern') || path.startsWith('arrMul')) { if (ctx.recoil) ctx.recoil.recompile(); }
+  if (path.startsWith('pattern') || path.startsWith('arrMul') || path.startsWith('curveMul')) { if (ctx.recoil) ctx.recoil.recompile(); }
   if (path === 'mag' && ctx.shooter) ctx.shooter.state.mag = Math.min(ctx.shooter.state.mag, value);
+}
+
+// curve 무기의 현재 배율 표시값: 개별 값/파일값 비율이 축의 경로 전부에서 같으면 그 비율, 아니면 null(혼합). 파일값 0인 경로는 건너뜀
+export function curveMulOf(weapon, orig, axis) {
+  let ratio = null;
+  for (const p of axis === 'v' ? CURVE_V_PATHS : CURVE_H_PATHS) {
+    const o = getPath(orig, p), c = getPath(weapon, p);
+    if (!o) continue;
+    const r = round4(c / o);
+    if (ratio === null) ratio = r;
+    else if (Math.abs(r - ratio) > 1e-3) return null;
+  }
+  return ratio === null ? 1 : ratio;
 }
 
 // 파일 값과 다른 경로 목록 (배열은 통째로 한 항목)
@@ -73,6 +96,7 @@ export function diffPaths(weapon, orig) {
     if (f.virtual) continue;
     if (getPath(weapon, f.path) !== getPath(orig, f.path)) out.push(f.path);
   }
+  if (weapon.headshotMul !== orig.headshotMul) out.push('headshotMul');   // T26.4 스펙 탭 신규 슬라이더
   if (weapon.pattern.mode === 'array' && JSON.stringify(weapon.pattern.arr) !== JSON.stringify(orig.pattern.arr)) out.push('pattern.arr');
   return out;
 }
@@ -109,9 +133,9 @@ function readStore() {
 function writeStore(store) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch { /* 저장 불가 환경 */ }
 }
-export function saveTuning(weapon, arrMul) {
+export function saveTuning(weapon, arrMul, curveMul = { v: 1, h: 1 }) {
   const store = readStore();
-  store[weapon.id] = { weapon: cloneWeapon(weapon), arrMul: { ...arrMul } };
+  store[weapon.id] = { weapon: cloneWeapon(weapon), arrMul: { ...arrMul }, curveMul: { ...curveMul } };
   writeStore(store);
 }
 export function clearTuning(id) {
@@ -121,10 +145,11 @@ export function clearTuning(id) {
 }
 
 // 시작 시: 파일 값을 origs로 복사해 두고, 저장된 튜닝이 있으면 weapon에 덮어쓴다 (검증을 통과한 것만).
-// kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, restored }
+// kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, curveMuls, restored }
 export function restoreTuning(weapons) {
   const origs = weapons.map(cloneWeapon);
   const arrMuls = weapons.map(() => ({ v: 1, h: 1 }));
+  const curveMuls = weapons.map(() => ({ v: 1, h: 1 }));
   const restored = [];
   const store = (typeof localStorage === 'undefined') ? {} : readStore();
   weapons.forEach((w, i) => {
@@ -134,141 +159,8 @@ export function restoreTuning(weapons) {
     if (warnings.length || norm.id !== w.id || norm.pattern.mode !== w.pattern.mode) { clearTuning(w.id); return; }
     for (const k of Object.keys(norm)) w[k] = norm[k];
     if (s.arrMul) arrMuls[i] = { v: s.arrMul.v ?? 1, h: s.arrMul.h ?? 1 };
+    if (s.curveMul) curveMuls[i] = { v: s.curveMul.v ?? 1, h: s.curveMul.h ?? 1 };
     restored.push(w.id);
   });
-  return { origs, arrMuls, restored };
-}
-
-// ---- 패널 DOM ----
-export function createTuningPanel({ weapons, origs, arrMuls, onChange }) {
-  const root = document.createElement('div');
-  root.id = 'tuning';
-  root.style.cssText = [
-    'position:fixed', 'right:12px', 'top:48px', 'bottom:140px', 'width:300px', 'z-index:10',   // T26.2 사용자 지시: 우측, 무기 슬롯 위 (bottom은 main.layoutPanels가 슬롯 높이에 맞춘다)
-    'padding:10px 12px', 'background:rgba(0,0,0,0.55)', 'color:#eee', 'overflow-y:auto',
-    'font:12px/1.4 system-ui, sans-serif', 'border-radius:6px', 'user-select:none', 'box-sizing:border-box',
-  ].join(';');
-  document.body.appendChild(root);
-
-  let cur = null;   // { weapon, orig, arrMul, recoil, shooter, index }
-
-  function el(tag, css, text) {
-    const e = document.createElement(tag);
-    if (css) e.style.cssText = css;
-    if (text !== undefined) e.textContent = text;
-    return e;
-  }
-
-  function render() {
-    root.replaceChildren();
-    if (!cur) return;
-    const { weapon: w, orig, arrMul } = cur;
-    const diffs = diffPaths(w, orig);
-
-    const title = el('div', 'font-weight:700;font-size:14px;margin-bottom:2px', `무기 튜닝 — ${w.name}`);
-    const badge = el('div', 'opacity:0.8;margin-bottom:6px',
-      diffs.length ? `● 파일과 다름 ${diffs.length}개 (새로고침해도 유지됨)` : '파일 값 그대로');
-    if (diffs.length) badge.style.color = '#ffd24a';
-    root.append(title, badge);
-
-    const btns = el('div', 'display:flex;gap:6px;margin-bottom:8px');
-    const btnCss = 'flex:1;padding:4px 6px;font:12px system-ui;background:#3a5f8a;color:#fff;border:0;border-radius:4px;cursor:pointer';
-    const reset = el('button', btnCss, '파일 값으로 초기화');
-    const copy = el('button', btnCss, 'JSON 복사');
-    btns.append(reset, copy);
-    root.appendChild(btns);
-    const out = el('textarea', 'width:100%;height:0;margin:0;padding:0;border:0;display:none;font:11px monospace;color:#ddd;background:rgba(255,255,255,0.08);box-sizing:border-box');
-    root.appendChild(out);
-
-    reset.addEventListener('click', () => {
-      const fresh = cloneWeapon(orig);
-      for (const k of Object.keys(fresh)) w[k] = fresh[k];
-      arrMul.v = 1; arrMul.h = 1;
-      if (cur.recoil) cur.recoil.recompile();
-      if (cur.shooter) cur.shooter.state.mag = Math.min(cur.shooter.state.mag, w.mag);
-      clearTuning(w.id);
-      if (onChange) onChange(w);
-      render();
-    });
-    copy.addEventListener('click', () => {
-      const text = toJson(w);
-      out.value = text;
-      out.style.display = 'block'; out.style.height = '160px'; out.style.margin = '0 0 8px';
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { copy.textContent = '복사됨 ✓'; }, () => { copy.textContent = '아래에서 복사'; });
-      else copy.textContent = '아래에서 복사';
-      out.focus(); out.select();
-    });
-
-    let lastGroup = null;
-    for (const f of FIELDS) {
-      if (!visible(f, w)) continue;
-      if (f.group !== lastGroup) {
-        lastGroup = f.group;
-        root.appendChild(el('div', 'margin-top:8px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.2);font-weight:700;opacity:0.9', f.group));
-      }
-      const row = el('label', 'display:block;margin-top:3px');
-      const changed = f.virtual ? diffs.includes('pattern.arr') : diffs.includes(f.path);
-      const head = el('div', changed ? 'color:#ffd24a' : '');
-      const valueEl = el('span', 'float:right;font-variant-numeric:tabular-nums');
-      head.textContent = (changed ? '● ' : '') + f.label;
-      head.appendChild(valueEl);
-      row.appendChild(head);
-
-      const getV = () => f.virtual ? arrMul[f.path.endsWith('.v') ? 'v' : 'h'] : getPath(w, f.path);
-      const commit = (v) => {
-        applyTuning(w, orig, f.path, v, cur);
-        saveTuning(w, arrMul);
-        if (onChange) onChange(w);
-        // 표시 구조가 바뀌는 항목(모드·토글)은 다시 그림, 나머지는 라벨만 갱신
-        if (f.type === 'bool' || f.type === 'enum') render(); else refreshLabels();
-      };
-
-      if (f.type === 'bool') {
-        const input = el('input', 'margin-right:6px');
-        input.type = 'checkbox'; input.checked = !!getV();
-        input.addEventListener('change', () => commit(input.checked));
-        head.prepend(input);
-      } else if (f.type === 'enum') {
-        const sel = el('select', 'width:100%;display:block;font:12px system-ui;background:#222;color:#eee;border:1px solid #555;border-radius:3px');
-        for (const v of f.values) { const o = el('option', '', v); o.value = v; sel.appendChild(o); }
-        sel.value = getV();
-        sel.addEventListener('change', () => commit(sel.value));
-        row.appendChild(sel);
-      } else {
-        const input = el('input', 'width:100%;display:block;margin:0');
-        input.type = 'range'; input.min = f.min; input.max = f.max; input.step = f.step; input.value = getV();
-        input.addEventListener('input', () => commit(Number(input.value)));
-        row.appendChild(input);
-        valueEl.textContent = fmt(getV(), f);
-      }
-      if (f.type !== 'range' && f.type !== undefined) valueEl.textContent = '';
-      row._refresh = () => {
-        const d = diffPaths(w, orig);
-        const ch = f.virtual ? d.includes('pattern.arr') : d.includes(f.path);
-        head.style.color = ch ? '#ffd24a' : '';
-        head.firstChild && head.firstChild.nodeType === 3 && (head.firstChild.textContent = (ch ? '● ' : '') + f.label);
-        if (f.type === undefined) valueEl.textContent = fmt(getV(), f);
-        badge.textContent = d.length ? `● 파일과 다름 ${d.length}개 (새로고침해도 유지됨)` : '파일 값 그대로';
-        badge.style.color = d.length ? '#ffd24a' : '';
-      };
-      root.appendChild(row);
-    }
-    function refreshLabels() { for (const r of root.querySelectorAll('label')) if (r._refresh) r._refresh(); }
-  }
-
-  function fmt(v, f) {
-    if (f.virtual) return '×' + Number(v).toFixed(2);
-    const dec = f.step >= 1 ? 0 : f.step >= 0.1 ? 1 : f.step >= 0.01 ? 2 : 3;
-    return Number(v).toFixed(dec);
-  }
-
-  // kit = { weapon, recoil, shooter } (loadout의 kit). index = 라인업 번호
-  function show(kit, index) {
-    cur = { weapon: kit.weapon, orig: origs[index], arrMul: arrMuls[index], recoil: kit.recoil, shooter: kit.shooter, index };
-    render();
-  }
-
-  function setVisible(v) { root.hidden = !v; }   // T26.1: 상시 HUD에서 뺀다 (T26.2 '무기 세팅' 버튼이 켠다)
-
-  return { root, show, render, setVisible };
+  return { origs, arrMuls, curveMuls, restored };
 }

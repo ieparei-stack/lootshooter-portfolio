@@ -15,7 +15,8 @@ import { createWeaponInfo } from './ui/weaponInfo.js';
 import { createCrosshair } from './ui/crosshair.js';
 import { createHitmarker } from './ui/hitmarker.js';
 import { createDamageNumbers } from './ui/damageNumbers.js';
-import { createTuningPanel, restoreTuning } from './ui/tuningPanel.js';
+import { restoreTuning } from './ui/tuningPanel.js';
+import { createWeaponPanel } from './ui/weaponPanel.js';
 import { createPatternOverlay } from './ui/patternOverlay.js';
 import { loadWeapons } from './weapon/weaponData.js';
 import { createRecoil } from './weapon/recoil.js';
@@ -114,19 +115,22 @@ function makeKit(weapon) {
     { player, movement, blocks, marks, hittables: [targets, monsters], onFire });
   return { weapon, ads, recoil, spread, shooter };
 }
-const tuningPanel = createTuningPanel({
-  weapons, origs: tuning.origs, arrMuls: tuning.arrMuls,
-  onChange: (w) => { weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
-});
 const weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장착 때는 안 띄운다)
 let loadoutReady = false;
+let weaponPanel = null;   // 아래에서 만든다 (kits가 필요)
 const loadout = createLoadout(weapons, makeKit, (kit, i) => {
   if (loadoutReady) weaponCard.show(kit.weapon);
   weaponInfo.set(kit.weapon);
   weaponInfo.setLineup(weapons, i);
-  tuningPanel.show(kit, i);
+  if (weaponPanel) weaponPanel.setEquipped(i);   // 패널의 선택 무기는 유지, 드롭다운에 ▶만 옮긴다
 });
 loadoutReady = true;
+// T26.4 무기 세팅 패널 — 튜닝 패널(T17.5) 대체. 드롭다운으로 고른 무기를 편집한다 (장착 무기와 무관)
+weaponPanel = createWeaponPanel({
+  weapons, kits: loadout.kits, origs: tuning.origs, arrMuls: tuning.arrMuls, curveMuls: tuning.curveMuls,
+  onChange: (w) => { if (w === loadout.current().weapon) weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
+});
+weaponPanel.setEquipped(loadout.state.index);
 const view = createView(camera, () => loadout.current().ads);
 const crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
@@ -145,7 +149,7 @@ keyboard.onPress('KeyP', () => { patternOverlay.toggle(); overlayBtn.textContent
 
 // T22: 몬스터 레버 (접이식 그룹) + 리셋. 설정 패널이 길어지면 튜닝 패널을 그 아래로 내린다
 // T26.2: 튜닝(무기 세팅) 패널은 우측 무기 슬롯 바로 위까지. 설정 패널은 좌측 고정이라 서로 무관
-const layoutPanels = () => { tuningPanel.root.style.bottom = (weaponInfo.root.getBoundingClientRect().height + 24) + 'px'; };
+const layoutPanels = () => { weaponPanel.root.style.bottom = (weaponInfo.root.getBoundingClientRect().height + 24) + 'px'; };
 const M = config.monster;
 const mg = settingsPanel.addGroup('몬스터 (T22)', { onToggle: layoutPanels });
 mg.addSlider({ label: '근접형 HP (리셋 후 적용)', min: 500, max: 6000, step: 100, get: () => M.melee.hp, set: (v) => { M.melee.hp = v; } });
@@ -164,13 +168,14 @@ settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
 window.addEventListener('resize', layoutPanels);
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(layoutPanels).observe(weaponInfo.root);   // 슬롯 높이가 바뀌면(내용 갱신) 패널 bottom 재계산
 // T26.1: 상시 HUD 비우기 — 설정 패널·튜닝 패널은 만들어 두고 숨긴다 (T26.2 일시정지 메뉴가 다시 연다). 키(M·P·X)는 계속 동작
 settingsPanel.setVisible(false);
-tuningPanel.setVisible(false);
+weaponPanel.setVisible(false);
 // T26.2: 일시정지 메뉴 — 잠금이 풀리면(ESC 등) 뜨고 Tab으로 열고 닫는다. 디버그 = 설정 패널, 무기 세팅 = 튜닝 패널(T26.4 전까지)
 const pauseMenu = createPauseMenu({
   canvas, mouseLook, onReset: resetZone,
-  panels: { settings: settingsPanel, tuning: tuningPanel },
+  panels: { settings: settingsPanel, tuning: weaponPanel },
   onStateChange: (mode) => { layoutPanels(); crosshair.ring.hidden = mode !== 'closed'; prompt.el.style.visibility = weaponCard.root.style.visibility = mode === 'closed' ? '' : 'hidden'; },   // 메뉴 중엔 조준점·프롬프트 숨김 (카드와 겹침)
 });
 // 시작 안내: 첫 잠금 전까지 중앙 프롬프트 (잠기면 지움)
@@ -179,7 +184,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, tuningPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, settingsPanel, tuningPanel, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, settingsPanel, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {
