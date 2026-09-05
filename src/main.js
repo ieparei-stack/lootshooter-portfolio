@@ -101,7 +101,7 @@ const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b)
 function onFire({ origin, dir, yaw, pitch, hit }) {
   tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
   if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
-    hitmarker.show(hit.part);
+    hitmarker.show(hit.part, crosshair.radius());   // 조준원 바깥에 붙는 마커
     damageNumbers.add(hit.point, hit.result.damage, hit.part);
   }
 }
@@ -212,6 +212,7 @@ startLoop((dt) => {
   playerHud.setHp(health.state.hp, health.state.hpMax);
   playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);
+  damageNumbers.setAnchor(crosshair.radius());   // 피해 숫자를 조준원 바로 오른쪽 위에
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   patternOverlay.draw(kit);
   renderer.render(scene, camera);

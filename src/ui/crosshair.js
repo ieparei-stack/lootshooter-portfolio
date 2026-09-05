@@ -25,5 +25,5 @@ export function createCrosshair() {
     ring.style.width = ring.style.height = (r * 2) + 'px';
   }
 
-  return { ring, set };
+  return { ring, set, radius: () => Math.max(lastR, 2) };
 }

@@ -1,5 +1,5 @@
-// 피해 숫자 — 화면 우측 위 고정 스택 (T17.5: 맞은 자리에 띄우면 에임을 가려서 옮김. 사용자 결정).
-// 최신 숫자가 맨 위. 0.7초 동안 위로 떠오르며 사라진다. 몸통 흰색, 머리 노란색 + 큰 글씨.
+// 피해 숫자 — 조준원 바로 오른쪽 위 스택 (사용자 지시 2026-09-06: 'HUD 우상단'이 아니라 조준원과 겹치지 않는 선에서 살짝 오른쪽 위).
+// 원 반지름만큼 띄운다(setAnchor). 최신 숫자가 원에 가까운 아래쪽, 0.7초 동안 위로 떠오르며 사라진다. 몸통 흰색, 머리 노란색 + 큰 글씨.
 // 인터페이스는 이전과 같다: add(point, damage, part) — point는 쓰지 않는다. update(dt).
 const LIFE = 0.7;
 const RISE = 20;   // px
@@ -8,8 +8,8 @@ export function createDamageNumbers(poolSize = 20) {
   const root = document.createElement('div');
   root.id = 'damageNumbers';
   root.style.cssText = [
-    'position:fixed', 'top:44px', 'right:24px', 'z-index:6', 'pointer-events:none',   // T26.1: 경고 배지(우상단 22px) 아래
-    'display:flex', 'flex-direction:column', 'align-items:flex-end', 'gap:2px',
+    'position:fixed', 'left:calc(50% + 24px)', 'bottom:calc(50% + 16px)', 'z-index:6', 'pointer-events:none',
+    'display:flex', 'flex-direction:column-reverse', 'align-items:flex-start', 'gap:2px',
   ].join(';');
   document.body.appendChild(root);
 
@@ -24,6 +24,15 @@ export function createDamageNumbers(poolSize = 20) {
     items.push({ el, t: 0, active: false });
   }
   let next = 0;
+  let anchorR = -1;
+  // 조준원 반지름(px)에 맞춰 원 밖으로 띄운다. 매 프레임 불러도 값이 같으면 아무것도 안 한다
+  function setAnchor(r) {
+    const v = Math.round(r);
+    if (v === anchorR) return;
+    anchorR = v;
+    root.style.left = `calc(50% + ${v + 14}px)`;
+    root.style.bottom = `calc(50% + ${v + 8}px)`;
+  }
 
   function add(_point, damage, part) {
     const it = items[next];
@@ -51,5 +60,5 @@ export function createDamageNumbers(poolSize = 20) {
     }
   }
 
-  return { root, add, update, items, LIFE };
+  return { root, add, update, setAnchor, items, LIFE };
 }
