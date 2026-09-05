@@ -6,8 +6,8 @@ export function createSettingsPanel() {
   const root = document.createElement('div');
   root.id = 'settings';
   root.style.cssText = [
-    'position:fixed', 'top:12px', 'left:12px', 'z-index:10',
-    'padding:10px 12px', 'min-width:220px',
+    'position:fixed', 'top:48px', 'left:12px', 'z-index:10', 'max-height:calc(100vh - 60px)', 'overflow-y:auto', 'box-sizing:border-box',   // T26.2: HUD 버튼 바(top 12, 높이 ~28) 아래
+    'padding:10px 12px', 'width:320px',   // T26.2: 플레이어 세팅 패널 — 세로 열 (전에는 안내문 때문에 화면 폭 전체)
     'background:rgba(0,0,0,0.55)', 'color:#eee',
     'font:13px/1.5 system-ui, sans-serif', 'border-radius:6px',
     'user-select:none',

@@ -144,7 +144,7 @@ export function createTuningPanel({ weapons, origs, arrMuls, onChange }) {
   const root = document.createElement('div');
   root.id = 'tuning';
   root.style.cssText = [
-    'position:fixed', 'left:12px', 'top:330px', 'bottom:12px', 'width:300px', 'z-index:10',
+    'position:fixed', 'right:12px', 'top:48px', 'bottom:140px', 'width:300px', 'z-index:10',   // T26.2 사용자 지시: 우측, 무기 슬롯 위 (bottom은 main.layoutPanels가 슬롯 높이에 맞춘다)
     'padding:10px 12px', 'background:rgba(0,0,0,0.55)', 'color:#eee', 'overflow-y:auto',
     'font:12px/1.4 system-ui, sans-serif', 'border-radius:6px', 'user-select:none', 'box-sizing:border-box',
   ].join(';');
