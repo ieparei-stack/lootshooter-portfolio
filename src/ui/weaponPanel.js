@@ -5,7 +5,8 @@ import { FIELDS, fieldVisible, applyTuning, curveMulOf, diffPaths, toJson, saveT
 // 무기 세팅 패널 (T26.4). 우측 고정 폭, 드롭다운(무기 선택) + 탭 3개(스펙·핸들링·성장). 튜닝 패널(T17.5)을 대체한다.
 //   - 탭 이름은 나중에 데이터 구조 문서의 층 이름이 된다. 슬라이더↔JSON 키 대응은 TASKS.md T26.4 표.
 //   - 기존 FIELDS 30개 전부가 세 탭 어딘가에 있다 (Node 테스트가 누락을 검사). 스펙 탭에 headshotMul 신규.
-//   - 반동 수직·수평 배율: array 무기는 arrMul, curve 무기는 curveMul(파일값 기준, 고급의 개별 값이 파일값×배율이 아니면 '혼합' 표시).
+//   - 반동 묶음 (T31): curve 무기는 기본값 6개(v0·vG·vMax·h0·hMax·수평 방식) + 수직·수평 배율(curveMul, 파일값 기준. 기본값을 개별로 바꿔
+//     파일값×배율이 아니면 '혼합' 표시). array 무기(CS형)는 예외 — 배율(arrMul)만. 고급에는 기본값이 더 이상 없다.
 //   - 전역 필드(정조준 FOV, 웅크리기·질주 배율)는 config를 직접 읽고 쓰며 tuning.v1에 저장하지 않는다. 점 기준은 시작 시 값.
 //   - 행: ● 변경 표시 · 숫자 입력 · 슬라이더 · 더블클릭 = 파일 값 복원. 탭 옆 변경 개수 배지.
 //   - localStorage ui.weaponPanel.v1 = { tab, advOpen, weaponIndex }. 튜닝 값은 tuning.v1 그대로 (tuningPanel.js).
@@ -23,10 +24,12 @@ export const TABS = [
   ] }] },
   { id: 'handling', label: '핸들링', groups: [
     { title: '반동', fields: [
+      // curve 무기: 기본값(파일 값) 먼저, 그 아래 배율 (T31). CS형은 when:'curve'라 자동으로 숨는다
+      F('pattern.v0'), F('pattern.vG'), F('pattern.vMax'), F('pattern.h0'), F('pattern.hMax'), F('pattern.hMode'),
+      { path: 'curveMul.v', label: '수직 배율 (파일값 기준)', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
+      { path: 'curveMul.h', label: '수평 배율 (파일값 기준)', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
       { path: 'arrMul.v', label: '수직 배율', min: 0, max: 3, step: 0.05, when: 'array', virtual: true },
       { path: 'arrMul.h', label: '수평 배율', min: 0, max: 3, step: 0.05, when: 'array', virtual: true },
-      { path: 'curveMul.v', label: '수직 배율', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
-      { path: 'curveMul.h', label: '수평 배율', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
       F('recovery.delay', '복귀 지연 (ms)'), F('recovery.speed', '복귀 속도 (°/s)'),
     ] },
     { title: '퍼짐', fields: [F('spread.base', 'base (°)'), F('spread.bloom', 'bloom (°/발)'), F('spread.decay', 'decay (°/s)'), F('spread.max', 'max (°)')] },
@@ -36,8 +39,7 @@ export const TABS = [
     ] },
     { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)')] },
     { title: '고급', adv: true, fields: [
-      F('pattern.v0'), F('pattern.h0'), F('pattern.vG'), F('pattern.vMax'), F('pattern.hMax'),
-      F('randV'), F('randH'), F('pattern.hMode'),
+      F('randV'), F('randH'),
       { ...byPath['arrMul.v'], label: '고정 배열 스케일 수직' }, { ...byPath['arrMul.h'], label: '고정 배열 스케일 수평' },
       F('cap.on', '누적 상한 사용'), F('cap.deg', '누적 상한 (°)'),
       globalField('player.crouchMul', '웅크리기 배율', () => P.crouchMul, (v) => { P.crouchMul = v; }, 0.2, 1.0, 0.05, (v) => '×' + v.toFixed(2)),
