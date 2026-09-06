@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { emit } from '../core/events.js';
 
 // 플레이어 HP·사망·부활 (T24). 사용자 결정: HP 1000, 자동 회복 없음, HP 0 → 2초 뒤 같은 자리에서 부활.
 //   damage(amount, from) : 몬스터 공격(monsters.js onPlayerHit)이 부른다. from = 공격자 위치 {x, z} (피격 방향 표시용)
@@ -21,6 +22,7 @@ export function createHealth({ player, onHit = null, onDeath = null, onRespawn =
   function damage(amount, from = null) {
     if (state.dead || amount <= 0) return false;
     state.hp = Math.max(0, state.hp - amount);
+    emit('playerHit');
     if (onHit) onHit(from ? hitAngle(from) : 0);
     if (state.hp === 0) die();
     return true;
@@ -30,6 +32,7 @@ export function createHealth({ player, onHit = null, onDeath = null, onRespawn =
     state.dead = true;
     state.deathT = 0;
     state.eyeBefore = player.state.eyeHeight;
+    emit('playerDeath');
     if (onDeath) onDeath();
   }
 
@@ -38,6 +41,7 @@ export function createHealth({ player, onHit = null, onDeath = null, onRespawn =
     state.deathT = 0;
     state.hp = state.hpMax;
     player.state.eyeHeight = P.eyeHeight;
+    emit('playerRespawn');
     if (onRespawn) onRespawn();
   }
 

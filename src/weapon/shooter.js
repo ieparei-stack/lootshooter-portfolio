@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { emit } from '../core/events.js';
 import { directionFromAngles, raycastWorld } from './raycast.js';
 import { colorOf } from '../ui/weaponColors.js';
 
@@ -31,6 +32,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     state.reloadStart = nowMs;
     state.reloadEnd = nowMs + weapon.reloadTime * 1000;
     state.reloadProgress = 0;
+    emit('reloadStart');
     return true;
   }
   function cancelReload() {
@@ -68,6 +70,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     }
     state.lastHit = hit;
     if (onFire) onFire({ origin, dir, yaw, pitch, hit });   // 트레이서·히트마커·데미지 숫자 (T14)
+    emit('fire', { weapon });   // T29 발사음 (무기별)
 
     spread.onShot();
     return { spread: sp, sample: s, hit };
@@ -86,7 +89,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
 
     // 재장전 취소 / 완료 / 진행도
     if (state.reloading && (sprinting || (state.mag > 0 && (rmbPressed || lmb)))) cancelReload();
-    if (state.reloading && nowMs >= state.reloadEnd) { state.mag = weapon.mag; cancelReload(); }
+    if (state.reloading && nowMs >= state.reloadEnd) { state.mag = weapon.mag; cancelReload(); emit('reloadEnd'); }
     if (state.reloading) {
       state.reloadProgress = Math.min(1, (nowMs - state.reloadStart) / (state.reloadEnd - state.reloadStart));
     }
@@ -101,7 +104,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     }
 
     // 빈 탄창에서 사격 입력 → 자동 재장전
-    if (lmb && !state.reloading && state.mag === 0) startReload(nowMs);
+    if (lmb && !state.reloading && state.mag === 0) { emit('empty'); startReload(nowMs); }   // startReload가 성공하면 다음 프레임엔 reloading이라 한 번만
 
     state.firing = canFire;
     recoil.update(nowMs, canFire, dtSec);

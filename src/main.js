@@ -32,6 +32,8 @@ import { createPlayerHud } from './ui/playerHud.js';
 import { createPrompt } from './ui/prompt.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
 import { createWeaponCard } from './ui/weaponCard.js';
+import { createSound } from './audio/sound.js';
+import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
@@ -60,6 +62,7 @@ const keyboard = createKeyboard(mouseLook);
 const mouseButtons = createMouseButtons(mouseLook);
 const movement = createMovement(player, keyboard, blocks);
 const settingsPanel = createSettingsPanel();
+const sound = createSound();   // T29 합성 사운드 — 이벤트 버스를 듣는다. 첫 클릭/키에서 오디오가 켜진다
 
 // 무기 데이터 — 값 오류는 화면 경고 + 기본값으로 진행
 const { weapons, warnings } = loadWeapons(weaponsJson);
@@ -102,6 +105,7 @@ function onFire({ origin, dir, yaw, pitch, hit }) {
   tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
   if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
     hitmarker.show(hit.part, crosshair.radius());   // 조준원 바깥에 붙는 마커
+    emit('hit', { part: hit.part });
     damageNumbers.add(hit.point, hit.result.damage, hit.part);
   }
 }
@@ -119,7 +123,7 @@ const weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장�
 let loadoutReady = false;
 let weaponPanel = null;   // 아래에서 만든다 (kits가 필요)
 const loadout = createLoadout(weapons, makeKit, (kit, i) => {
-  if (loadoutReady) weaponCard.show(kit.weapon);
+  if (loadoutReady) { weaponCard.show(kit.weapon); emit('weaponSwitch'); }
   weaponInfo.set(kit.weapon);
   weaponInfo.setLineup(weapons, i);
   if (weaponPanel) weaponPanel.setEquipped(i);   // 패널의 선택 무기는 유지, 드롭다운에 ▶만 옮긴다
@@ -162,6 +166,11 @@ mg.addSlider({ label: '원거리형 피해', min: 5, max: 300, step: 5, get: () 
 mg.addSlider({ label: '보스 HP (리셋 후 적용)', min: 5000, max: 40000, step: 1000, get: () => M.boss.hp, set: (v) => { M.boss.hp = v; } });
 mg.addSlider({ label: '플레이어 최대 HP (리셋 후 적용)', min: 100, max: 3000, step: 100, get: () => config.player.hpMax, set: (v) => { config.player.hpMax = v; } });
 hitsTaken.text = mg.addText('받은 공격: 0회');
+// T29: 사운드 그룹 — 마스터 볼륨 + 켜기/끄기 (localStorage audio.v1)
+const sg = settingsPanel.addGroup('사운드', { open: true, onToggle: layoutPanels });
+sg.addSlider({ label: '마스터 볼륨', min: 0, max: 1, step: 0.05, get: () => sound.state.volume, set: (v) => sound.setVolume(v), format: (v) => Math.round(v * 100) + '%' });
+const muteLabel = () => `소리: ${sound.state.muted ? '꺼짐' : '켜짐'}`;
+const muteBtn = sg.addButton(muteLabel(), () => { sound.setMuted(!sound.state.muted); muteBtn.textContent = muteLabel(); });
 // T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
 const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
 settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
@@ -184,7 +193,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, settingsPanel, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker };
 }
 
 startLoop((dt) => {

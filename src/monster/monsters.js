@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { computeDamage } from '../weapon/damage.js';
 import { resolveCircleVsBlocks } from '../player/collision.js';
 import { raycastWorld } from '../weapon/raycast.js';
+import { emit } from '../core/events.js';
 
 // 몬스터 (T22 2종 + T26 보스). 데이터는 코드에 둔다 (무기만 파일). 수치는 config.monster — 슬라이더가 직접 바꾼다.
 //   melee  근접형: 인지하면 달려와 reach 안에서 windup 동안 몸을 내밀고 때린다. cooldown 뒤 반복.
@@ -264,7 +265,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
 
       if (m.kind === 'melee') {
         if (m.state === 'chase') {
-          if (dist <= C.reach) { m.state = 'attack'; m.timer = 0; }
+          if (dist <= C.reach) { m.state = 'attack'; m.timer = 0; emit('meleeWindup', { dist }); }
           else { mvx = ux; mvz = uz; }
         }
         if (m.state === 'attack') {
@@ -298,6 +299,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
           m.aimT += dt;
           if (m.aimT >= C.aimDelay) {
             fireRanged(m, C, ux, uz);
+            emit('rangedFire', { dist });
             m.aimT = 0;
             m.cooldownT = C.cooldown;
           } else {

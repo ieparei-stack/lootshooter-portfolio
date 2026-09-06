@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RANGE, floorText } from './range.js';
+import { emit } from '../core/events.js';
 
 // 전투 구역(방) 생성기 (T25 구역 1 → T26 방 4개로 일반화).
 // 사용자 결정(2026-09-04): 문 뒤 새 방들, 플레이어 높이차 없음, 낮은 상자(1.1m) + 높은 벽(2.5m), 몬스터 전용 단(2m) 위에 원거리형·보스만.
@@ -108,6 +109,7 @@ export function openDoor(room, scene, blocks) {
   if (i >= 0) blocks.splice(i, 1);
   scene.remove(room.doorMesh);
   room.open = true;
+  emit('door');
 }
 export function closeDoor(room, scene, blocks) {
   if (!room.door) return;

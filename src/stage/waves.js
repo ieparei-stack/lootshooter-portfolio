@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { emit } from '../core/events.js';
 import { RANGE, floorLine } from './range.js';
 
 // 방 단위 웨이브 존 (T23 → T26 방마다 하나). 웨이브 구성은 코드에 둔다 (무기만 파일 — SPEC 3-1).
@@ -38,6 +39,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
   function spawnWave(i) {
     for (const d of waves[i]) monsters.spawn(d.kind, d.x, d.z, d);
     state.alive = monsters.aliveCount();   // 스폰 프레임의 HUD가 0으로 찍히지 않게
+    emit(boss ? 'bossSpawn' : 'waveSpawn');
   }
 
   function setPhase(phase, timer = 0) { state.phase = phase; state.timer = timer; }
@@ -51,7 +53,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
     } else if (state.phase === 'wave') {
       state.alive = monsters.aliveCount();
       if (state.alive === 0) {
-        if (state.index >= waves.length - 1) { setPhase('clear'); if (onClear) onClear(); }
+        if (state.index >= waves.length - 1) { setPhase('clear'); emit('zoneClear'); if (onClear) onClear(); }
         else { state.index++; setPhase('countdown', W.betweenDelay); }
       }
     }
