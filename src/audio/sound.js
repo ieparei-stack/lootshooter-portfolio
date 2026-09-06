@@ -60,8 +60,10 @@ export function createSound({ onLoad = true } = {}) {
   }
 
   // ---- 소리 정의 ----
+  let lastFireAt = -1;
   const SOUNDS = {
-    fire: (d) => { const p = FIRE[d && d.weapon && d.weapon.id] || FIRE.cs; noise({ hz: p.noiseHz, q: p.noiseQ, dur: p.dur, gain: p.gain }); tone({ hz: p.tone, dur: p.toneDur, gain: 0.35 }); },
+    fire: (d) => { const c = state.ctx.currentTime; if (c - lastFireAt < 0.012) return; lastFireAt = c;   // T32: 고RPM에서 12ms 안 겹치는 발사음은 건너뜀
+      const p = FIRE[d && d.weapon && d.weapon.id] || FIRE.cs; noise({ hz: p.noiseHz, q: p.noiseQ, dur: p.dur, gain: p.gain }); tone({ hz: p.tone, dur: p.toneDur, gain: 0.35 }); },
     hit: (d) => { if (d && d.part === 'head') { tone({ hz: 1800, sweepTo: 2400, dur: 0.045, gain: 0.25 }); } else tone({ hz: 1200, dur: 0.03, gain: 0.2 }); },
     empty: () => noise({ hz: 5000, q: 2, dur: 0.025, gain: 0.3 }),
     reloadStart: () => noise({ hz: 1500, q: 3, dur: 0.04, gain: 0.35 }),

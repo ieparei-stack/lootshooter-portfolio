@@ -7,9 +7,10 @@ import { FIELDS, fieldVisible, applyTuning, curveMulOf, diffPaths, toJson, saveT
 //   - 기존 FIELDS 30개 전부가 세 탭 어딘가에 있다 (Node 테스트가 누락을 검사). 스펙 탭에 headshotMul 신규.
 //   - 반동 묶음 (T31): curve 무기는 기본값 6개(v0·vG·vMax·h0·hMax·수평 방식) + 수직·수평 배율(curveMul, 파일값 기준. 기본값을 개별로 바꿔
 //     파일값×배율이 아니면 '혼합' 표시). array 무기(CS형)는 예외 — 배율(arrMul)만. 고급에는 기본값이 더 이상 없다.
+//   - 상한: T32에서 핸들링 ×3 · 스펙 ×10 (정조준 FOV는 카메라 한계로 170). settingsPanel의 같은 전역 슬라이더와 범위를 맞춘다.
 //   - 전역 필드(정조준 FOV, 웅크리기·질주 배율)는 config를 직접 읽고 쓰며 tuning.v1에 저장하지 않는다. 점 기준은 시작 시 값.
 //   - 행: ● 변경 표시 · 숫자 입력 · 슬라이더 · 더블클릭 = 파일 값 복원. 탭 옆 변경 개수 배지.
-//   - localStorage ui.weaponPanel.v1 = { tab, advOpen, weaponIndex }. 튜닝 값은 tuning.v1 그대로 (tuningPanel.js).
+//   - localStorage ui.weaponPanel.v1 = { tab, advOpen }. 선택 무기는 기억하지 않고 항상 1번(CS형)에서 시작 (사용자 지시 2026-09-06). 튜닝 값은 tuning.v1 그대로 (tuningPanel.js).
 export const UI_KEY = 'ui.weaponPanel.v1';
 
 const byPath = Object.fromEntries(FIELDS.map((f) => [f.path, f]));
@@ -19,22 +20,22 @@ const globalField = (key, label, get, set, min, max, step, fmt) => ({ path: 'con
 const R = config.render, P = config.player;
 export const TABS = [
   { id: 'spec', label: '스펙', groups: [{ title: null, fields: [
-    F('damage', '발당 피해'), { path: 'headshotMul', label: '헤드샷 배율', min: 1, max: 3, step: 0.1 },
+    F('damage', '발당 피해'), { path: 'headshotMul', label: '헤드샷 배율', min: 1, max: 30, step: 0.1 },
     F('rpm'), F('mag', '탄창 (발)'), F('reloadTime', '재장전 시간 (s)'), F('ads.allowed', '정조준 가능'),
   ] }] },
   { id: 'handling', label: '핸들링', groups: [
     { title: '반동', fields: [
       // curve 무기: 기본값(파일 값) 먼저, 그 아래 배율 (T31). CS형은 when:'curve'라 자동으로 숨는다
       F('pattern.v0'), F('pattern.vG'), F('pattern.vMax'), F('pattern.h0'), F('pattern.hMax'), F('pattern.hMode'),
-      { path: 'curveMul.v', label: '수직 배율 (파일값 기준)', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
-      { path: 'curveMul.h', label: '수평 배율 (파일값 기준)', min: 0, max: 3, step: 0.05, when: 'curve', virtual: true },
-      { path: 'arrMul.v', label: '수직 배율', min: 0, max: 3, step: 0.05, when: 'array', virtual: true },
-      { path: 'arrMul.h', label: '수평 배율', min: 0, max: 3, step: 0.05, when: 'array', virtual: true },
+      { path: 'curveMul.v', label: '수직 배율 (파일값 기준)', min: 0, max: 9, step: 0.05, when: 'curve', virtual: true },
+      { path: 'curveMul.h', label: '수평 배율 (파일값 기준)', min: 0, max: 9, step: 0.05, when: 'curve', virtual: true },
+      { path: 'arrMul.v', label: '수직 배율', min: 0, max: 9, step: 0.05, when: 'array', virtual: true },
+      { path: 'arrMul.h', label: '수평 배율', min: 0, max: 9, step: 0.05, when: 'array', virtual: true },
       F('recovery.delay', '복귀 지연 (ms)'), F('recovery.speed', '복귀 속도 (°/s)'),
     ] },
     { title: '퍼짐', fields: [F('spread.base', 'base (°)'), F('spread.bloom', 'bloom (°/발)'), F('spread.decay', 'decay (°/s)'), F('spread.max', 'max (°)')] },
     { title: '정조준', fields: [
-      globalField('render.adsFov', '정조준 FOV (°)', () => R.adsFov, (v) => { R.adsFov = v; }, 30, 90, 1, (v) => String(v)),
+      globalField('render.adsFov', '정조준 FOV (°)', () => R.adsFov, (v) => { R.adsFov = v; }, 30, 170, 1, (v) => String(v)),
       F('ads.time', '조준 시간 (ms)'), F('ads.spread', '퍼짐 배율'), F('ads.recoil', '반동 배율'),
     ] },
     { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)')] },
@@ -42,8 +43,8 @@ export const TABS = [
       F('randV'), F('randH'),
       { ...byPath['arrMul.v'], label: '고정 배열 스케일 수직' }, { ...byPath['arrMul.h'], label: '고정 배열 스케일 수평' },
       F('cap.on', '누적 상한 사용'), F('cap.deg', '누적 상한 (°)'),
-      globalField('player.crouchMul', '웅크리기 배율', () => P.crouchMul, (v) => { P.crouchMul = v; }, 0.2, 1.0, 0.05, (v) => '×' + v.toFixed(2)),
-      globalField('player.sprintMul', '질주 배율', () => P.sprintMul, (v) => { P.sprintMul = v; }, 1.0, 2.5, 0.05, (v) => '×' + v.toFixed(2)),
+      globalField('player.crouchMul', '웅크리기 배율', () => P.crouchMul, (v) => { P.crouchMul = v; }, 0.2, 3.0, 0.05, (v) => '×' + v.toFixed(2)),
+      globalField('player.sprintMul', '질주 배율', () => P.sprintMul, (v) => { P.sprintMul = v; }, 1.0, 7.5, 0.05, (v) => '×' + v.toFixed(2)),
     ] },
   ] },
   { id: 'growth', label: '성장', groups: [] },
@@ -67,7 +68,7 @@ function readUi() { try { return JSON.parse(localStorage.getItem(UI_KEY) || '{}'
 function writeUi(u) { try { localStorage.setItem(UI_KEY, JSON.stringify(u)); } catch { /* 저장 불가 */ } }
 
 export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, onChange = null }) {
-  const ui = { tab: 'spec', advOpen: false, weaponIndex: 0, ...readUi() };
+  const ui = { tab: 'spec', advOpen: false, ...readUi(), weaponIndex: 0 };   // 선택 무기는 항상 1번(CS형)부터
   if (!TABS.some((t) => t.id === ui.tab)) ui.tab = 'spec';
   if (!(ui.weaponIndex >= 0 && ui.weaponIndex < weapons.length)) ui.weaponIndex = 0;
   const globalDefaults = {};   // 전역 필드 점 기준 (시작 시 값)
@@ -91,7 +92,7 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
     return { i, weapon: weapons[i], orig: origs[i], arrMul: arrMuls[i], curveMul: curveMuls[i], recoil: kits[i]?.recoil, shooter: kits[i]?.shooter };
   }
   function ctxOf(c) { return { arrMul: c.arrMul, curveMul: c.curveMul, recoil: c.recoil, shooter: c.shooter }; }
-  function persistUi() { writeUi({ tab: ui.tab, advOpen: ui.advOpen, weaponIndex: state.index }); }
+  function persistUi() { writeUi({ tab: ui.tab, advOpen: ui.advOpen }); }
 
   // 값 읽기/쓰기/복원 — 필드 종류별
   function getValue(f, c) {

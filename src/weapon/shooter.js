@@ -96,11 +96,18 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
 
     // 발사
     const canFire = lmb && !state.reloading && !sprinting && state.mag > 0;
-    if (canFire && nowMs - state.lastShot >= 60000 / weapon.rpm) {
-      state.lastShot = nowMs;
-      state.shots++;
-      state.mag--;
-      fireOne(nowMs);
+    if (canFire) {
+      // T32: 프레임당 여러 발. lastShot을 간격만큼 누적시켜 실제 발사율이 RPM과 맞는다. 첫 발·긴 휴식 뒤(간격+100ms 초과)는 따라잡기 없이 1발.
+      const interval = 60000 / weapon.rpm;
+      if (state.lastShot === -Infinity || nowMs - state.lastShot > interval + 100) state.lastShot = nowMs - interval;
+      let n = 0;
+      while (state.mag > 0 && nowMs - state.lastShot >= interval && n < 20) {   // 20 = dt 상한 0.1s × 12000 RPM
+        state.lastShot += interval;
+        state.shots++;
+        state.mag--;
+        fireOne(nowMs);
+        n++;
+      }
     }
 
     // 빈 탄창에서 사격 입력 → 자동 재장전

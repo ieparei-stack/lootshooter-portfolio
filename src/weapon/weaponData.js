@@ -13,7 +13,7 @@
 //   pattern.hMode  'fixed-alt'(좌우 교대 고정) | 'random'(±hMax 무작위)   curve
 //   pattern.hMax   수평 반동 상한 (°/샷)         curve
 //   pattern.arr    [[v, h], ...] 고정 배열 (°)   array
-//   randV / randH  무작위 지터 비율 (0~1). 수직은 음수로 내려가지 않음
+//   randV / randH  무작위 지터 비율 (0~3, T32에서 상한 확대. 1을 넘으면 수직은 0으로 막히고 수평은 반대쪽으로 튈 수 있음). 수직은 음수로 내려가지 않음
 //   recovery.delay 복귀 시작 지연 (ms)
 //   recovery.speed 복귀 속도 (°/s). 보정분 제외
 //   spread.base    기본 퍼짐 (°)   spread.bloom 발당 누적 (°)   spread.max 상한 (°)   spread.decay 초당 회복 (°/s)
@@ -56,8 +56,8 @@ const SCHEMA = [
   { path: 'pattern.h0',    type: 'number', def: 0.056, min: 0, when: 'curve' },
   { path: 'pattern.hMode', type: 'enum', values: ['fixed-alt', 'random'], def: 'fixed-alt', when: 'curve' },
   { path: 'pattern.hMax',  type: 'number', def: 0.09, min: 0, when: 'curve' },
-  { path: 'randV', type: 'number', def: 0.25, min: 0, max: 1 },
-  { path: 'randH', type: 'number', def: 0.0,  min: 0, max: 1 },
+  { path: 'randV', type: 'number', def: 0.25, min: 0, max: 3 },
+  { path: 'randH', type: 'number', def: 0.0,  min: 0, max: 3 },
   { path: 'recovery.delay', type: 'number', def: 110, min: 0 },
   { path: 'recovery.speed', type: 'number', def: 7, min: 0 },
   { path: 'spread.base',  type: 'number', def: 0.34, min: 0 },
