@@ -46,7 +46,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
   }
 
   function fireOne(nowMs) {
-    recoil.fire(nowMs, ads.recoilMul());
+    const kicked = recoil.fire(nowMs, ads.recoilMul());   // { v, h, idx } — T30 뷰모델 반동에 씀
 
     const sp = spread.current(ads.spreadMul(), moveMul());
     const s = spread.sample(sp);
@@ -70,7 +70,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     }
     state.lastHit = hit;
     if (onFire) onFire({ origin, dir, yaw, pitch, hit });   // 트레이서·히트마커·데미지 숫자 (T14)
-    emit('fire', { weapon });   // T29 발사음 (무기별)
+    emit('fire', { weapon, recoil: { v: kicked.v, h: kicked.h } });   // T29 발사음 (무기별) · T30 뷰모델 반동
 
     spread.onShot();
     return { spread: sp, sample: s, hit };

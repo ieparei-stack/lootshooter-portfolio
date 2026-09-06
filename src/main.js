@@ -33,6 +33,7 @@ import { createPrompt } from './ui/prompt.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
 import { createWeaponCard } from './ui/weaponCard.js';
 import { createSound } from './audio/sound.js';
+import { createViewModel } from './weapon/viewModel.js';
 import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -129,6 +130,9 @@ const loadout = createLoadout(weapons, makeKit, (kit, i) => {
   if (weaponPanel) weaponPanel.setEquipped(i);   // 패널의 선택 무기는 유지, 드롭다운에 ▶만 옮긴다
 });
 loadoutReady = true;
+// T30 총기 뷰모델 — 별도 씬으로 본 씬 위에 덧그린다. 현재 kit을 매 프레임 다시 읽는다 (view.js와 같은 방식)
+const viewModel = createViewModel(renderer, { getKit: () => loadout.current() });
+renderer.autoClear = false;   // 본 씬 → clearDepth → 뷰모델 씬 순서로 그리기 위해 수동 clear
 // T26.4 무기 세팅 패널 — 튜닝 패널(T17.5) 대체. 드롭다운으로 고른 무기를 편집한다 (장착 무기와 무관)
 weaponPanel = createWeaponPanel({
   weapons, kits: loadout.kits, origs: tuning.origs, arrMuls: tuning.arrMuls, curveMuls: tuning.curveMuls,
@@ -171,6 +175,10 @@ const sg = settingsPanel.addGroup('사운드', { open: true, onToggle: layoutPan
 sg.addSlider({ label: '마스터 볼륨', min: 0, max: 1, step: 0.05, get: () => sound.state.volume, set: (v) => sound.setVolume(v), format: (v) => Math.round(v * 100) + '%' });
 const muteLabel = () => `소리: ${sound.state.muted ? '꺼짐' : '켜짐'}`;
 const muteBtn = sg.addButton(muteLabel(), () => { sound.setMuted(!sound.state.muted); muteBtn.textContent = muteLabel(); });
+// T30: 총기 뷰모델 켜기/끄기 (localStorage viewModel.v1)
+const vg = settingsPanel.addGroup('총기 뷰모델', { open: true, onToggle: layoutPanels });
+const vmLabel = () => `뷰모델: ${viewModel.state.enabled ? '켜짐' : '꺼짐'}`;
+const vmBtn = vg.addButton(vmLabel(), () => { viewModel.setEnabled(!viewModel.state.enabled); vmBtn.textContent = vmLabel(); });
 // T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
 const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
 settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
@@ -193,7 +201,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, events: { emit } };
 }
 
 startLoop((dt) => {
@@ -214,6 +222,7 @@ startLoop((dt) => {
   player.state.offPitch = recoil.state.offPitch;
   player.apply();
   view.update();
+  viewModel.update(dt);           // 카메라 확정 뒤 — ads ease·재장전 진행도·반동 반영
   damageNumbers.update(dt);
   playerHud.update(dt);
   prompt.update(dt);
@@ -224,5 +233,7 @@ startLoop((dt) => {
   damageNumbers.setAnchor(crosshair.radius());   // 피해 숫자를 조준원 바로 오른쪽 위에
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   patternOverlay.draw(kit);
+  renderer.clear();
   renderer.render(scene, camera);
+  viewModel.render();             // T30: 깊이만 지우고 총을 덧그린다
 });
