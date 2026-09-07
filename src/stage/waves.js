@@ -54,7 +54,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
     } else if (state.phase === 'wave') {
       state.alive = monsters.aliveCount();
       if (state.alive === 0) {
-        if (state.index >= waves.length - 1) { setPhase('clear'); emit('zoneClear'); if (onClear) onClear(); }
+        if (state.index >= waves.length - 1) { setPhase('clear'); if (onClear) onClear(); }   // zoneClear 이벤트(클리어 음)는 stage가 문을 열 때 쏜다 (T39: 강화 확정 뒤)
         else { state.index++; setPhase('countdown', W.betweenDelay); }
       }
     }

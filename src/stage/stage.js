@@ -3,6 +3,7 @@ import { createWaveZone, makeWaves, makeBossWaves } from './waves.js';
 import { RANGE, floorText } from './range.js';
 import { createGuide } from './guide.js';
 import { config } from '../config.js';
+import { emit } from '../core/events.js';
 
 // 스테이지 흐름 (T26): 사격장 → 구역 1 → 구역 2 → 구역 3 → 보스. 사용자 결정(2026-09-04):
 //   모든 웨이브 처치 = 클리어 → 다음 방 문이 열린다(벽 사라짐). 되돌아갈 수 있다. 구역 2는 종류당 +1, 구역 3은 +2 마리.
@@ -10,6 +11,8 @@ import { config } from '../config.js';
 // T26.1: 클리어·보스 처치 문구는 상단 줄이 아니라 중앙 프롬프트(ui/prompt.js)로. 보스 HP는 %가 아니라 바.
 // blocks는 main이 만든 공용 배열 — 방 블록을 여기서 push 하고, 문은 openDoor/closeDoor가 넣고 뺀다.
 // T34: 보스가 아닌 방마다 guide(바닥 유도선 + 문 빛기둥). 클리어 시 show, 플레이어가 문을 지나면(endZ − 1) 또는 리셋 시 hide.
+// T39: 보스가 아닌 방을 클리어하면 onPick(i, finish)로 강화 선택 화면에 넘기고, 확정 뒤 finish()가 문을 연다 (클리어 음도 그때).
+//      onPick이 없으면(테스트·보스) 즉시 finish.
 
 function createHud() {
   if (typeof document === 'undefined') return null;
@@ -35,7 +38,7 @@ function createHud() {
   return { el, boss, bossFill };
 }
 
-export function createStage(scene, { player, monsters, blocks, prompt = null }) {
+export function createStage(scene, { player, monsters, blocks, prompt = null, onPick = null }) {
   const rooms = ROOMS.map((spec) => buildRoom(scene, blocks, spec));
   if (scene) floorText(scene, '전투 구역 ▼', 0, RANGE.zFar + 2, 4);   // 사격장 쪽 문 앞
   const guides = rooms.map((room) => (room.boss || !scene ? null : createGuide(scene, room)));
@@ -47,9 +50,14 @@ export function createStage(scene, { player, monsters, blocks, prompt = null }) 
     waves: room.boss ? makeBossWaves(room) : makeWaves(room, i, config.monster.zoneHpMul[i] ?? 1),   // 구역 1: +0, 2: +1, 3: +2. HP 배율 1.0/1.1/1.2 (T38)
     triggerZ: room.triggerZ, endZ: room.endZ, label: room.label, boss: room.boss,
     onClear: () => {
-      openDoor(room, scene, blocks); state.lastCleared = i;
-      if (guides[i]) guides[i].show();
-      if (prompt) { if (room.boss) prompt.hold(zones[i].clearText()); else prompt.show(zones[i].clearText(), 3); }
+      const finish = () => {
+        emit('zoneClear');   // T29 클리어 음 — T39 강화 확정 뒤(문 열림과 함께) 한 번
+        openDoor(room, scene, blocks); state.lastCleared = i;
+        if (guides[i]) guides[i].show();
+        if (prompt) { if (room.boss) prompt.hold(zones[i].clearText()); else prompt.show(zones[i].clearText(), 3); }
+      };
+      if (!room.boss && onPick) onPick(i, finish);
+      else finish();
     },
   }));
 

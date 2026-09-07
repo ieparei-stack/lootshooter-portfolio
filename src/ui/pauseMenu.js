@@ -24,7 +24,7 @@ const FLOW = [
 const PANEL_TITLE = { settings: '플레이어 세팅', tuning: '무기 세팅' };
 
 export function createPauseMenu({ canvas, mouseLook, onReset = null, panels = {}, onStateChange = null } = {}) {
-  const state = { mode: 'closed', panel: null, returnTo: 'closed' };   // returnTo = 패널을 닫으면 돌아갈 모드 (바 버튼은 카드 없이도 눌린다)
+  const state = { mode: 'closed', panel: null, returnTo: 'closed', blocked: false };   // returnTo = 패널을 닫으면 돌아갈 모드 (바 버튼은 카드 없이도 눌린다). blocked = T39 강화 선택 화면 중 (열리지 않고 ESC/Tab 무시)
 
   const overlay = document.createElement('div');
   overlay.id = 'pauseMenu';
@@ -122,9 +122,15 @@ export function createPauseMenu({ canvas, mouseLook, onReset = null, panels = {}
 
   overlay.addEventListener('click', () => { if (state.mode === 'menu') tryRelock(); });
 
+  // T39: 강화 선택 화면 중에는 메뉴를 막는다 — 잠금 해제로도 안 열리고 ESC/Tab도 무시
+  function setBlocked(b) {
+    state.blocked = !!b;
+    if (state.blocked) { hidePanel(); setMode('closed'); }
+  }
+
   document.addEventListener('pointerlockchange', () => {
     if (mouseLook.isLocked()) { hidePanel(); setMode('closed'); }
-    else open();
+    else if (!state.blocked) open();
   });
   document.addEventListener('pointerlockerror', () => {
     if (state.mode === 'menu') sub.textContent = '지금은 잠글 수 없습니다 — 잠시 뒤 Tab 또는 화면 클릭';
@@ -133,14 +139,15 @@ export function createPauseMenu({ canvas, mouseLook, onReset = null, panels = {}
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Tab') {
       e.preventDefault();
+      if (state.blocked) return;
       if (mouseLook.isLocked()) { document.exitPointerLock(); return; }   // → pointerlockchange → open()
       if (state.mode === 'panel') closePanel();
       else tryRelock();   // menu 또는 closed(풀린 채) — 제스처라 잠금 가능
-    } else if (e.code === 'Escape' && !mouseLook.isLocked()) {
+    } else if (e.code === 'Escape' && !mouseLook.isLocked() && !state.blocked) {
       if (state.mode === 'panel') closePanel();
       else if (state.mode === 'menu') closeCard();
     }
   });
 
-  return { state, overlay, bar, open, closeCard, openPanel, closePanel, togglePanel, tryRelock };
+  return { state, overlay, bar, open, closeCard, openPanel, closePanel, togglePanel, tryRelock, setBlocked };
 }

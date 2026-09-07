@@ -148,6 +148,13 @@ export function createGrowth(weapons, origs, { onRefresh = null, cards = CARDS }
     return true;
   }
 
+  // T39 선택 화면의 확정: Lv +1 하고 그 무기의 선택 횟수 +1 (T40 저장·"구역 번호 > 선택 횟수" 판정용)
+  function pick(id, k) {
+    if (!setLevel(id, k, level(id, k) + 1)) return false;
+    state.byId[id].picks++;
+    return true;
+  }
+
   // 성장 탭 표: 수치 효과가 건드리는 경로마다 { path, label, orig, tuned, mul, final, floored, card: k }
   function rows(i) {
     const w = weapons[i], eff = effective[i], orig = origs[i];
@@ -172,5 +179,5 @@ export function createGrowth(weapons, origs, { onRefresh = null, cards = CARDS }
     refreshAll();
   }
 
-  return { state, effective, warnings, card, cards: cards_, level, setLevel, refresh, refreshAll, rows, perksOf, reset, floored, indexOf };
+  return { state, effective, warnings, card, cards: cards_, level, setLevel, pick, refresh, refreshAll, rows, perksOf, reset, floored, indexOf };
 }

@@ -36,6 +36,7 @@ import { createWeaponCard } from './ui/weaponCard.js';
 import { createSound } from './audio/sound.js';
 import { createViewModel } from './weapon/viewModel.js';
 import { createGrowth } from './growth/growth.js';
+import { createGrowthPick } from './ui/growthPick.js';
 import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -114,7 +115,37 @@ const monsters = createMonsters(scene, {
     if (hitsTaken.text) hitsTaken.text.textContent = `받은 공격: ${hitsTaken.count}회 (마지막 −${damage} ${kind === 'melee' ? '근접' : kind === 'boss' ? '보스' : '원거리'})`;
   },
 });
-stage = createStage(scene, { player, monsters, blocks, prompt });   // 구역 1~3 + 보스 방, 문 열림
+// T39 강화 선택 화면 — 구역 1~3 클리어 시 stage.onPick → open. 루프는 growthPick.state.open 동안 정지(아래). 포인터 해제·일시정지 메뉴 차단은 onOpen/onClose에서
+let pauseMenu = null, crosshair = null, weaponCard = null;   // 아래에서 만든다
+let pickDone = null;           // 확정 시 부를 stage의 finish (문 열림·안내·클리어 음)
+let pendingClearText = null;   // 확정 뒤 포인터가 풀린 채 붙잡아 둔 클리어 문구 — 재잠금 시 3초 프롬프트로 바꾼다
+const growthPick = createGrowthPick({
+  weapons, growth,
+  onOpen: () => {
+    if (mouseLook.isLocked()) document.exitPointerLock();
+    if (pauseMenu) pauseMenu.setBlocked(true);
+    if (crosshair) crosshair.ring.hidden = true;
+    prompt.el.style.visibility = 'hidden';
+    if (weaponCard) weaponCard.root.style.visibility = 'hidden';
+  },
+  onClose: (applied, zone) => {
+    if (pauseMenu) pauseMenu.setBlocked(false);
+    if (crosshair) crosshair.ring.hidden = false;
+    prompt.el.style.visibility = '';
+    if (weaponCard) weaponCard.root.style.visibility = '';
+    const finish = pickDone; pickDone = null;
+    if (!applied || !finish) return;   // 리셋으로 닫힘 — 문은 안 연다
+    finish();   // 문 열림 + T34 안내 + 클리어 프롬프트(3초) + 클리어 음. 성장 탭은 열릴 때 다시 그리므로(setVisible) Lv가 반영된다
+    if (!mouseLook.isLocked()) { pendingClearText = stage.zones[zone].clearText(); prompt.hold(pendingClearText + '  (클릭하여 계속)'); }
+  },
+});
+stage = createStage(scene, {
+  player, monsters, blocks, prompt,
+  onPick: (i, finish) => { pickDone = finish; growthPick.open(i); },
+});   // 구역 1~3 + 보스 방, 문 열림
+document.addEventListener('pointerlockchange', () => {
+  if (mouseLook.isLocked() && pendingClearText !== null) { prompt.show(pendingClearText, 3); pendingClearText = null; }
+});
 // 사망 중에는 사격·정조준 입력을 막는다 (버튼 상태를 감싼다)
 const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b) };
 
@@ -148,7 +179,7 @@ function makeKit(weapon) {
     { player, movement, blocks, marks, hittables: [targets, monsters], onFire });
   return { weapon, ads, recoil, spread, shooter };
 }
-const weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장착 때는 안 띄운다)
+weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장착 때는 안 띄운다)
 let loadoutReady = false;
 let weaponPanel = null;   // 아래에서 만든다 (kits가 필요)
 loadout = createLoadout(growth.effective, makeKit, (kit, i) => {
@@ -172,7 +203,7 @@ weaponPanel.setEquipped(loadout.state.index);
 const view = createView(camera, () => loadout.current());   // T35: 정조준 FOV는 무기별 ads.fov
 // T38 정조준 이동 페널티: 현재 무기의 정조준 진행도 + 조준 보정 Lv3(perks.adsMoveFree)
 movement.setAdsEase(() => { const k = loadout.current(); return { ease: k.ads.state.ease, free: !!(k.weapon.perks && k.weapon.perks.adsMoveFree) }; });
-const crosshair = createCrosshair();
+crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
 // 키 1~3 직접 전환 (라인업 3정 — COD형 제외, 사용자 결정 2026-09-05), 휠 순환 전환, R 재장전(현재 무기)
@@ -217,7 +248,7 @@ const vg = settingsPanel.addGroup('총기 뷰모델', { open: true, onToggle: la
 const vmLabel = () => `뷰모델: ${viewModel.state.enabled ? '켜짐' : '꺼짐'}`;
 const vmBtn = vg.addButton(vmLabel(), () => { viewModel.setEnabled(!viewModel.state.enabled); vmBtn.textContent = vmLabel(); });
 // T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
-const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; accuracy.reset(); refreshAccuracy(); };
+const resetZone = () => { growthPick.close(false); stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; accuracy.reset(); refreshAccuracy(); };
 settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
@@ -227,7 +258,7 @@ if (typeof ResizeObserver !== 'undefined') new ResizeObserver(layoutPanels).obse
 settingsPanel.setVisible(false);
 weaponPanel.setVisible(false);
 // T26.2: 일시정지 메뉴 — 잠금이 풀리면(ESC 등) 뜨고 Tab으로 열고 닫는다. 디버그 = 설정 패널, 무기 세팅 = 튜닝 패널(T26.4 전까지)
-const pauseMenu = createPauseMenu({
+pauseMenu = createPauseMenu({
   canvas, mouseLook, onReset: resetZone,
   panels: { settings: settingsPanel, tuning: weaponPanel },
   onStateChange: (mode) => { layoutPanels(); crosshair.ring.hidden = mode !== 'closed'; prompt.el.style.visibility = weaponCard.root.style.visibility = mode === 'closed' ? '' : 'hidden'; },   // 메뉴 중엔 조준점·프롬프트 숨김 (카드와 겹침)
@@ -238,33 +269,44 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, events: { emit } };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, growthPick, events: { emit } };
 }
 
+// T39: 강화 선택 화면 동안 게임 정지. 게임 시각 now = 실시간 − 정지 누적. shooter·recoil의 재장전·버프·패턴 리셋 타이머가 전부 이 now를 받으므로
+//      정지 중 흐르지 않는다. 정지 중엔 갱신을 전부 건너뛰고(사망 타이머 포함 — "클리어 우선, 닫힌 뒤 부활") 렌더만 계속한다.
+let pausedMs = 0, pauseStart = -1;
 startLoop((dt) => {
-  const now = performance.now();
+  const real = performance.now();
+  const paused = growthPick.state.open;
+  if (paused) { if (pauseStart < 0) pauseStart = real; }
+  else if (pauseStart >= 0) { pausedMs += real - pauseStart; pauseStart = -1; }
+  const now = (paused ? pauseStart : real) - pausedMs;
   const kit = loadout.current();
   const { weapon, ads, recoil, spread, shooter } = kit;
-  patternOverlay.beforeShoot(recoil);   // 첫 발 직전 조준 방향을 궤적 원점으로 (shooter.update보다 먼저)
-  health.update(dt);              // 사망 타이머·눈높이·부활 (movement보다 먼저 — 죽으면 이동을 건너뛴다)
-  if (health.state.dead) { movement.state.vx = movement.state.vz = movement.state.speed = 0; }
-  else movement.update(dt);
-  ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
-  shooter.update(now, dt);
-  targets.update(dt, camera);
-  stage.update(dt);               // 트리거·스폰·웨이브 전이·문 열림 (monsters.update 앞 — 스폰된 프레임에 바로 움직인다)
-  monsters.update(dt, camera);
-  tracers.update(dt);
+  if (!paused) {
+    patternOverlay.beforeShoot(recoil);   // 첫 발 직전 조준 방향을 궤적 원점으로 (shooter.update보다 먼저)
+    health.update(dt);              // 사망 타이머·눈높이·부활 (movement보다 먼저 — 죽으면 이동을 건너뛴다)
+    if (health.state.dead) { movement.state.vx = movement.state.vz = movement.state.speed = 0; }
+    else movement.update(dt);
+    ads.update(dt);                 // 이 프레임의 배율이 발사에 쓰이도록 shooter보다 먼저
+    shooter.update(now, dt);
+    targets.update(dt, camera);
+    stage.update(dt);               // 트리거·스폰·웨이브 전이·문 열림 (monsters.update 앞 — 스폰된 프레임에 바로 움직인다)
+    monsters.update(dt, camera);
+    tracers.update(dt);
+  }
   // T35 viewTracking: recoil.state.off*는 탄도 기준 누적 반동(100%). 카메라는 그중 viewTracking 비율만 따라간다 — 탄은 shooter가 100%로 쏜다
   player.state.offYaw = recoil.state.offYaw * weapon.viewTracking;
   player.state.offPitch = recoil.state.offPitch * weapon.viewTracking;
   player.apply();
   view.update();
-  viewModel.update(dt);           // 카메라 확정 뒤 — ads ease·재장전 진행도·반동 반영
-  damageNumbers.update(dt);
-  playerHud.update(dt);
-  prompt.update(dt);
-  weaponCard.update(dt);
+  if (!paused) {
+    viewModel.update(dt);           // 카메라 확정 뒤 — ads ease·재장전 진행도·반동 반영
+    damageNumbers.update(dt);
+    playerHud.update(dt);
+    prompt.update(dt);
+    weaponCard.update(dt);
+  }
   playerHud.setHp(health.state.hp, health.state.hpMax);
   playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);
