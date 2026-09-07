@@ -22,10 +22,10 @@
 
 - 웹 + **Three.js (npm, 버전 고정)**, **JavaScript ESM**, **Vite**
 - 개발: `npm run dev` → 로컬 서버 URL에서 직접 플레이하며 확인
-- 제출: `npm run build` → **`dist/index.html` 단일 파일**, 더블클릭 실행, 오프라인 동작
+- 제출: `npm run build` → **루트 `게임실행.html` 단일 파일**(dist/index.html 복사본, git 포함), 더블클릭 실행, 오프라인 동작 (T57). 공개 저장소 `github.com/ieparei-stack/lootshooter-portfolio` + GitHub Pages 플레이 링크 (T58)
 - git 사용, 티켓당 커밋 1개
 - **폴더 구조 — 확정 (T01)**: `index.html` / `src/main.js` / `src/config.js`(조절 수치 모음) / `src/core`(렌더러·루프·입력·이벤트 버스) / `src/player`(카메라·이동·충돌·시야·HP) / `src/stage`(사격장·방·웨이브·안내) / `src/ui`(패널·HUD·오버레이) / `data/`(무기) / `docs/` / `dist/`(빌드, git 제외). 이후 추가: `src/weapon`(반동·퍼짐·정조준·발사·로드아웃·뷰모델·명중률) / `src/monster` / `src/audio`(합성음) / `src/growth`(강화 카드) / `src/stats`(결과 통계)
-- 제출본은 **`dist/index.html`**이다. 루트의 `index.html`은 개발용 원본이라 더블클릭하면 검은 화면이 나온다
+- 제출본은 **루트 `게임실행.html`**이다. 루트의 `index.html`은 개발용 원본이라 더블클릭하면 "개발용 파일입니다 — 게임실행.html을 여세요" 안내만 나온다 (T57)
 
 ---
 
@@ -243,7 +243,7 @@
 | 15 | ~~스폰 웨이브 표~~ — TASKS T47 초안 그대로 확정 (`waves.js WAVE_TABLE`) | 완료 |
 | 16 | ~~음원 파일·라이선스~~ — 사용자 제공 mp3 2개(강한→CS, 중간→PUBG) 마지막 1발 WAV, 루트슈터형은 PUBG 클립 가공. 프리 라이선스, 표기 불필요 (T48) | 완료 |
 | 17 | ~~UI/UX 점검 목록~~ — 13개 중 9번만 채택 + 추가 2건(슬롯 강화 줄·시작 안내) (T49) | 완료 |
-| 18 | 제출 형태 — `게임실행.html` 하나 / GitHub 공개 + 플레이 링크 / Windows 실행 파일(.exe) 여부 | 7단계 T57~T59 시작 시 |
+| 18 | ~~제출 형태~~ — 루트 `게임실행.html` 하나(T57) · 공개 저장소 `lootshooter-portfolio` + Pages 플레이 링크, push는 Claude(T58) · **.exe 안 함**(T59 제외, 사용자 결정) | 완료 |
 
 ---
 
@@ -327,3 +327,14 @@
 - 코드: `data/weapons.json`(crouchRecoilMul·moveSpreadCap 신설) · `src/growth/cards.js` · `src/stage/waves.js WAVE_TABLE` · `src/monster/monsters.js`(정예·aiming·wallBetween) · `src/stage/arena.js`(sealEntrance) · `src/audio/clips.js`(base64) · `src/ui/reloadRing.js` · `src/stage/guide.js`(createGuidePath·createRangeGuide) · `src/ui/weaponInfo.js setPerks`
 - 검증 방식 추가: 헤드리스 Chrome을 CDP로 조작해 `window.__debug`로 상태를 만들고 스크린샷을 파일로 저장(scratchpad `shot.mjs`) — 전/후 비교·1080p 확인용
 - 다음: **7단계 제출·배포** (TASKS "7단계" 절, T57 → T58 → T59 선택). 목표(사용자 2026-09-08): 이직 포트폴리오 — 실행 파일 하나, GitHub 공개 가능, 루트에서 바로 여는 `게임실행.html`
+
+---
+
+## 17. 7단계 종료 기록 (2026-09-08)
+
+- T57 → T58 완료 (`79cc36c` · `e0f7634`), T59(.exe)는 사용자 결정으로 **제외**. 남은 티켓 없음 — 데모 제작 종료
+- 인터뷰 확정(TBD #18): 저장소 이름 **`lootshooter-portfolio`** · **공개** · 저장소는 사용자가 github.com에서 생성(gh CLI 없음) · push는 Claude가 실행(승인) · Pages Source "GitHub Actions"는 사용자가 설정
+- 산출물: 루트 `게임실행.html`(780 KB, 더블클릭·오프라인) · https://github.com/ieparei-stack/lootshooter-portfolio (README: 소개·플레이 링크·실행법·조작키·데모 흐름·3정 성격·스크린샷 4장·문서 3종·기술 구성) · 플레이 링크 https://ieparei-stack.github.io/lootshooter-portfolio/ (main push마다 Actions 자동 배포)
+- 코드: `vite.config.js copyToRoot` · `index.html #dev-notice` · `.github/workflows/pages.yml` · `docs/screenshots/01~04.png`
+- 검증: 빌드본 dist와 바이트 동일·외부 참조 0 · 헤드리스 Chrome file:// 스크린샷 · Actions 첫 실행 성공 · 플레이 링크 게임 로드(콘솔 오류 0) · 원격 루트 파일 목록
+- 이후(티켓 아님, 사용자 준비): 기획서(PPT)·플레이 영상(YouTube) 링크를 README에 추가할 수 있다
