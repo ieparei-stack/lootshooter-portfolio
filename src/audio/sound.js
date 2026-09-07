@@ -20,6 +20,7 @@ const FIRE = {
 export const FILES = {
   'fire.cs':   { clip: 'fire_cs',   gain: 0.7 },   // 강한.mp3 마지막 1발
   'fire.pubg': { clip: 'fire_pubg', gain: 0.7 },   // 중간.mp3 마지막 1발
+  'fire.d2':   { clip: 'fire_d2',   gain: 0.6 },   // 녹음 없음 → pubg 클립 피치 ×1.3·240 ms 가공 (후보 A)
 };
 
 export function createSound({ onLoad = true } = {}) {
