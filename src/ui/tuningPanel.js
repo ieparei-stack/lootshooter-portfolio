@@ -4,7 +4,8 @@
 //   - 가상 값(파일에 없음): arrMul.v/h = 고정 배열 30발 전체 배율, curveMul.v/h = curve 무기 v0·vG·vMax / h0·hMax 배율 (T26.4).
 //     둘 다 **파일 값(orig) 기준**으로 곱한다. 배율을 움직이면 개별 값을 파일값×배율로 덮어쓴다.
 //   - 파일 값(origs)과 다른 항목은 diffPaths로 찾는다. toJson으로 weapons.json 항목 형식을 얻는다.
-//   - localStorage(tuning.v1)에 보존. 항목 형식 { weapon, arrMul, curveMul } — curveMul은 T26.4에서 추가, 없으면 {1,1} (옛 저장분 호환).
+//   - localStorage(tuning.v1)에 보존. 항목 형식 { weapon, arrMul, curveMul, file } — curveMul은 T26.4에서 추가, 없으면 {1,1} (옛 저장분 호환).
+//     file = 저장 당시 파일 값의 지문 (T36). 파일 값이 바뀌면(지문 불일치·없음) 그 무기의 저장분을 버린다 — 옛 튜닝이 새 파일 값을 덮어쓰지 않게.
 import { loadWeapons, cloneWeapon, getPath, setPath } from '../weapon/weaponData.js';
 
 export const STORAGE_KEY = 'tuning.v1';
@@ -136,9 +137,17 @@ function readStore() {
 function writeStore(store) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch { /* 저장 불가 환경 */ }
 }
-export function saveTuning(weapon, arrMul, curveMul = { v: 1, h: 1 }) {
+// 파일 값 지문 (T36): 정규화된 무기 객체의 JSON 문자열을 djb2 해시. 값이 하나라도 다르면 다른 지문
+export function fingerprint(weapon) {
+  const s = JSON.stringify(weapon);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
+
+export function saveTuning(weapon, arrMul, curveMul = { v: 1, h: 1 }, orig = null) {
   const store = readStore();
-  store[weapon.id] = { weapon: cloneWeapon(weapon), arrMul: { ...arrMul }, curveMul: { ...curveMul } };
+  store[weapon.id] = { weapon: cloneWeapon(weapon), arrMul: { ...arrMul }, curveMul: { ...curveMul }, file: orig ? fingerprint(orig) : null };
   writeStore(store);
 }
 export function clearTuning(id) {
@@ -151,16 +160,19 @@ export function clearTuning(id) {
 export const MIGRATE_PATHS = ['viewTracking', 'crouchSpreadMul', 'ads.fov'];
 
 // 시작 시: 파일 값을 origs로 복사해 두고, 저장된 튜닝이 있으면 weapon에 덮어쓴다 (검증을 통과한 것만).
-// kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, curveMuls, restored }
+// kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, curveMuls, restored, dropped }
+// dropped = 파일 값이 바뀌어(지문 불일치 또는 옛 형식) 버린 무기 id 목록 (T36) — main.js가 패널에 안내 한 줄을 띄운다
 export function restoreTuning(weapons) {
   const origs = weapons.map(cloneWeapon);
   const arrMuls = weapons.map(() => ({ v: 1, h: 1 }));
   const curveMuls = weapons.map(() => ({ v: 1, h: 1 }));
   const restored = [];
+  const dropped = [];
   const store = (typeof localStorage === 'undefined') ? {} : readStore();
   weapons.forEach((w, i) => {
     const s = store[w.id];
     if (!s || !s.weapon) return;
+    if (!s.file || s.file !== fingerprint(origs[i])) { clearTuning(w.id); dropped.push(w.id); return; }
     for (const p of MIGRATE_PATHS) if (getPath(s.weapon, p) === undefined) setPath(s.weapon, p, getPath(w, p));
     const { weapons: [norm], warnings } = loadWeapons({ weapons: [s.weapon] });
     if (warnings.length || norm.id !== w.id || norm.pattern.mode !== w.pattern.mode) { clearTuning(w.id); return; }
@@ -169,5 +181,5 @@ export function restoreTuning(weapons) {
     if (s.curveMul) curveMuls[i] = { v: s.curveMul.v ?? 1, h: s.curveMul.h ?? 1 };
     restored.push(w.id);
   });
-  return { origs, arrMuls, curveMuls, restored };
+  return { origs, arrMuls, curveMuls, restored, dropped };
 }

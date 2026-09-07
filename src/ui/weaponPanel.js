@@ -69,7 +69,8 @@ export function tabPaths(tab) {
 function readUi() { try { return JSON.parse(localStorage.getItem(UI_KEY) || '{}') || {}; } catch { return {}; } }
 function writeUi(u) { try { localStorage.setItem(UI_KEY, JSON.stringify(u)); } catch { /* 저장 불가 */ } }
 
-export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, onChange = null }) {
+// notice: 세션 동안 헤더 아래에 보이는 안내 한 줄 (T36: 파일 값이 바뀌어 저장 튜닝을 버렸을 때). null이면 없음
+export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, onChange = null, notice = null }) {
   const ui = { tab: 'spec', advOpen: false, ...readUi(), weaponIndex: 0 };   // 선택 무기는 항상 1번(CS형)부터
   if (!TABS.some((t) => t.id === ui.tab)) ui.tab = 'spec';
   if (!(ui.weaponIndex >= 0 && ui.weaponIndex < weapons.length)) ui.weaponIndex = 0;
@@ -109,13 +110,13 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
   }
   function commit(f, c, value) {
     if (f.global) { f.set(value); }
-    else { applyTuning(c.weapon, c.orig, f.path, value, ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul); }
+    else { applyTuning(c.weapon, c.orig, f.path, value, ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul, c.orig); }
     if (onChange) onChange(c.weapon);
   }
   function restoreField(f, c) {
     if (f.global) { f.set(globalDefaults[f.path]); }
-    else if (f.path.startsWith('arrMul.') || f.path.startsWith('curveMul.')) { applyTuning(c.weapon, c.orig, f.path, 1, ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul); }
-    else { applyTuning(c.weapon, c.orig, f.path, getPath(c.orig, f.path), ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul); }
+    else if (f.path.startsWith('arrMul.') || f.path.startsWith('curveMul.')) { applyTuning(c.weapon, c.orig, f.path, 1, ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul, c.orig); }
+    else { applyTuning(c.weapon, c.orig, f.path, getPath(c.orig, f.path), ctxOf(c)); saveTuning(c.weapon, c.arrMul, c.curveMul, c.orig); }
     if (onChange) onChange(c.weapon);
   }
   function fmt(v, f) {
@@ -143,6 +144,7 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
     sel.addEventListener('change', () => { state.index = Number(sel.value); persistUi(); render(); });
     head.appendChild(sel);
     root.appendChild(head);
+    if (notice) root.appendChild(el('div', 'margin:-4px 0 8px;padding:4px 6px;border-radius:4px;background:rgba(255,210,74,0.18);color:#ffd24a;font-size:11px', notice));
 
     // 탭 버튼 + 배지
     const tabs = el('div', 'display:flex;gap:4px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.2)');

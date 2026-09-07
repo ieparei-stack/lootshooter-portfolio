@@ -18,7 +18,7 @@ const DEG = Math.PI / 180;
 // 돌격소총 실루엣 (사용자 지시 2026-09-06: 박스 2~3개 → AR 형태). 부품: [w, h, d, x, y, z, rotXdeg, tone]  (m, °)
 //   총은 -z 방향(앞)을 향한다. 원점 = 몸통(리시버) 뒤쪽 위. tone 'dark'는 무기 색을 어둡게 (총열·탄창·손잡이 — 실루엣이 읽히게).
 //   무기별 차이: CS형 = 길고 가는 총열 + 휜 탄창 + 고정 개머리판 / PUBG형 = 굵은 몸통 + 짧은 총열 + 캐링핸들 + 긴 개머리판
-//              데스티니형 = 납작·넓은 몸통 + 총구 제동기 + 위 조준경 + 뼈대 개머리판
+//              루트슈터형(옛 데스티니형, T36 개명) = 납작·넓은 몸통 + 총구 제동기 + 위 조준경 + 뼈대 개머리판
 function arParts({ recv, hgLen, barrelLen, magTilt, magLen, stock, top, brake }) {
   const [rw, rh, rd] = recv;
   const P = [];

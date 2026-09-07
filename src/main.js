@@ -136,6 +136,7 @@ renderer.autoClear = false;   // 본 씬 → clearDepth → 뷰모델 씬 순서
 // T26.4 무기 세팅 패널 — 튜닝 패널(T17.5) 대체. 드롭다운으로 고른 무기를 편집한다 (장착 무기와 무관)
 weaponPanel = createWeaponPanel({
   weapons, kits: loadout.kits, origs: tuning.origs, arrMuls: tuning.arrMuls, curveMuls: tuning.curveMuls,
+  notice: tuning.dropped.length ? `파일 값이 바뀌어 저장된 튜닝을 초기화했습니다: ${tuning.dropped.map((id) => (weapons.find((w) => w.id === id) || { name: id }).name).join(', ')}` : null,   // T36
   onChange: (w) => { if (w === loadout.current().weapon) weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
 });
 weaponPanel.setEquipped(loadout.state.index);
