@@ -26,6 +26,9 @@ export function createWeaponInfo() {
   buffs.style.cssText = 'font-size:12px;color:#7dfaff;font-variant-numeric:tabular-nums;white-space:nowrap';
   const name = document.createElement('div');
   name.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:4px';
+  // T49: 적용 중인 강화 한 줄 (Lv 1 이상만). 없으면 숨김 — 슬롯 높이가 바뀌면 main.js ResizeObserver가 패널 bottom을 재계산한다
+  const perks = document.createElement('div');
+  perks.style.cssText = 'display:none;font-size:12px;margin:-2px 0 4px;white-space:nowrap;font-variant-numeric:tabular-nums';
   const stats = document.createElement('div');
   stats.style.cssText = 'opacity:0.85;white-space:pre';
   const lineup = document.createElement('div');
@@ -34,6 +37,7 @@ export function createWeaponInfo() {
   root.appendChild(bar);
   root.appendChild(buffs);
   root.appendChild(name);
+  root.appendChild(perks);
   root.appendChild(stats);
   root.appendChild(lineup);
   stats.hidden = true;   // T26.1: 상시 HUD에서 뺌
@@ -112,5 +116,22 @@ export function createWeaponInfo() {
     buffs.style.marginBottom = text ? '4px' : '0';
   }
 
-  return { root, set, setAmmo, setLineup, setBuffs };
+  // T49: items = [{ name, lv }] — main.js perksOf(i). 비면 줄을 숨긴다
+  let lastPerks = '';
+  function setPerks(items) {
+    const key = items.map((it) => `${it.name}${it.lv}`).join('|');
+    if (key === lastPerks) return;
+    lastPerks = key;
+    if (items.length === 0) { perks.style.display = 'none'; perks.replaceChildren(); return; }
+    const label = document.createElement('span');
+    label.style.cssText = 'color:#ffd24a;font-weight:700;margin-right:6px';
+    label.textContent = '강화';
+    const body = document.createElement('span');
+    body.style.opacity = '0.85';
+    body.textContent = items.map((it) => `${it.name} Lv${it.lv}`).join(' · ');
+    perks.replaceChildren(label, body);
+    perks.style.display = 'block';
+  }
+
+  return { root, set, setAmmo, setLineup, setBuffs, setPerks };
 }

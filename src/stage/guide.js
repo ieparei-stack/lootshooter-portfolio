@@ -21,6 +21,18 @@ export function createGuide(scene, room) {
   const path = [
     [0, p.maxZ + 3], [sideX, p.maxZ + 3], [sideX, zFar + 1.5], [0, zFar + 1.5], [0, zFar - 1.5],
   ];
+  return createGuidePath(scene, path, zFar - 0.25);   // 문 블록 중심 (뒷벽 두께 0.5)
+}
+
+// T49 시작 안내: 사격 라인 앞 → 백스톱 문(x 0, z RANGE.zFar) → 문 너머. 중앙 레인 직진(50 m 표적 x ±0.7 사이).
+// 보이는 조건은 stage.js가 플레이어 위치(사격장 안)로만 정한다 — 상태 없음.
+export function createRangeGuide(scene) {
+  const zFar = RANGE.zFar;
+  return createGuidePath(scene, [[0, -1], [0, zFar + 1.5], [0, zFar - 1.5]], zFar - 0.25);
+}
+
+// 점선 조각(path를 따라) + 문 자리 빛기둥·문틀(zDoor). 생성 시 숨김
+export function createGuidePath(scene, path, zDoor) {
   const group = new THREE.Group();
   group.visible = false;
 
@@ -41,7 +53,6 @@ export function createGuide(scene, room) {
   }
 
   // B 빛기둥 + 문틀
-  const zDoor = zFar - 0.25;   // 문 블록 중심 (뒷벽 두께 0.5)
   const beam = new THREE.Mesh(
     new THREE.BoxGeometry(RANGE.doorHalf * 2, G.beamHeight, 0.6),
     new THREE.MeshBasicMaterial({ color: G.color, transparent: true, opacity: G.beamOpacity, depthWrite: false }),

@@ -87,9 +87,11 @@ const growth = createGrowth(weapons, tuning.origs, {
     kit.recoil.recompile();
     const s = kit.shooter.state;
     if (prevMag > 0 && eff.mag !== prevMag) s.mag = Math.min(eff.mag, Math.round(s.mag * eff.mag / prevMag));   // 탄창이 늘면 현재 탄도 비율 유지
-    if (i === loadout.state.index) weaponInfo.set(eff);
+    if (i === loadout.state.index) { weaponInfo.set(eff); weaponInfo.setPerks(perksOf(i)); }   // T49: 강화 확정·초기화·튜닝 변경 모두 여기로 온다
   },
 });
+// T49: 슬롯에 보일 적용 중 강화 — Lv 1 이상 카드의 { name, lv }
+function perksOf(i) { const id = weapons[i].id; return growth.cards(id).map((c, k) => (c ? { name: c.name, lv: growth.level(id, k) } : null)).filter((it) => it && it.lv > 0); }   // 지원 안 하는 카드(null)는 건너뛴다
 showWarnings(growth.warnings);
 
 // 탄자국 + 명중 피드백 + 조준선(원) — 무기와 무관한 공용 요소
@@ -207,6 +209,7 @@ let weaponPanel = null;   // 아래에서 만든다 (kits가 필요)
 loadout = createLoadout(growth.effective, makeKit, (kit, i) => {
   if (loadoutReady) { weaponCard.show(kit.weapon); emit('weaponSwitch'); }
   weaponInfo.set(kit.weapon);
+  weaponInfo.setPerks(perksOf(i));   // T49
   weaponInfo.setLineup(weapons, i);
   if (weaponPanel) weaponPanel.setEquipped(i);   // 패널의 선택 무기는 유지, 드롭다운에 ▶만 옮긴다
 });
@@ -306,7 +309,8 @@ pauseMenu = createPauseMenu({
 });
 // 시작 안내: 첫 잠금 전까지 중앙 프롬프트 (잠기면 지움)
 prompt.hold('클릭하여 시작');
-document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() && prompt.state.text === '클릭하여 시작') prompt.clear(); }, { once: false });
+// T49: 첫 잠금(처음부터 다시 시작 뒤 포함) 순간 사격장 통과 안내를 5초 (바닥 초록 점선·문 빛기둥은 stage.js rangeGuide)
+document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() && prompt.state.text === '클릭하여 시작') prompt.show('총을 시험해 본 뒤, 초록 선을 따라 문으로 가세요', 5); }, { once: false });
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {

@@ -1,7 +1,7 @@
 import { ROOMS, buildRoom, openDoor, closeDoor, sealEntrance, unsealEntrance } from './arena.js';
 import { createWaveZone, makeWaves, makeBossWaves } from './waves.js';
 import { RANGE, floorText } from './range.js';
-import { createGuide } from './guide.js';
+import { createGuide, createRangeGuide } from './guide.js';
 import { config } from '../config.js';
 import { emit } from '../core/events.js';
 
@@ -43,6 +43,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
   const rooms = ROOMS.map((spec) => buildRoom(scene, blocks, spec));
   if (scene) floorText(scene, '전투 구역 ▼', 0, RANGE.zFar + 2, 4);   // 사격장 쪽 문 앞
   const guides = rooms.map((room) => (room.boss || !scene ? null : createGuide(scene, room)));
+  const rangeGuide = scene ? createRangeGuide(scene) : null;   // T49 시작 안내 — 사격장 안에 있는 동안만 보인다 (아래 update)
   const hud = createHud();
   const state = { current: -1, lastCleared: -1 };   // current = 진행 중(countdown/wave/hold)인 존, 없으면 −1
 
@@ -89,6 +90,11 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
       if (!g || !g.visible) return;
       if (player.state.z < rooms[i].endZ - 1) g.hide(); else g.update(dt);
     });
+    if (rangeGuide) {
+      const inRange = player.state.z > RANGE.zFar - 1;   // 백스톱 문을 지나면 숨김, 리셋으로 돌아오면 다시 보임
+      if (inRange) { if (!rangeGuide.visible) rangeGuide.show(); rangeGuide.update(dt); }
+      else if (rangeGuide.visible) rangeGuide.hide();
+    }
     state.current = zones.findIndex((z) => z.active());
     draw();
   }
@@ -107,5 +113,5 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
     draw();
   }
 
-  return { state, rooms, zones, guides, update, reset, holdForRespawn, restartCurrent };
+  return { state, rooms, zones, guides, rangeGuide, update, reset, holdForRespawn, restartCurrent };
 }

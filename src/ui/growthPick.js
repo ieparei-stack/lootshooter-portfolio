@@ -59,14 +59,15 @@ export function createGrowthPick({ weapons, growth, onOpen = null, onClose = nul
         const lv = card ? growth.level(w.id, k) : 0;
         const maxed = !card || lv >= MAX_LEVEL;
         const chosen = state.choice[i] === k;
-        const box = h('div', 'padding:10px 12px;border-radius:6px;min-height:78px;border:2px solid ' + (chosen ? color : 'rgba(255,255,255,0.12)') +
-          ';background:' + (chosen ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.03)') + (maxed ? ';opacity:0.4;cursor:default' : ';cursor:pointer'));
+        // T49-9: 선택 카드는 무기 색 3px 테두리 + 같은 색 글로우, 설명 15px (사용자 승인 2026-09-08)
+        const box = h('div', 'padding:10px 12px;border-radius:6px;min-height:82px;box-sizing:border-box;border:3px solid ' + (chosen ? color : 'rgba(255,255,255,0.12)') +
+          ';background:' + (chosen ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.03)') + (chosen ? `;box-shadow:0 0 12px ${color}` : '') + (maxed ? ';opacity:0.4;cursor:default' : ';cursor:pointer'));
         box.dataset.row = i; box.dataset.card = k;
         const top = h('div', 'display:flex;justify-content:space-between;align-items:baseline;gap:6px');
-        top.appendChild(h('span', 'font-weight:800;font-size:15px', card ? card.name : `${k + 1}. 지원 안 함`));
+        top.appendChild(h('span', 'font-weight:800;font-size:16px', card ? card.name : `${k + 1}. 지원 안 함`));
         top.appendChild(h('span', 'font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;opacity:0.85', !card ? '' : maxed ? '최대' : `Lv ${lv} → ${lv + 1}`));
         box.appendChild(top);
-        box.appendChild(h('div', 'margin-top:6px;font-size:13px;line-height:1.35', !card ? '경고 배지 참고' : maxed ? '최대 단계입니다' : cardDesc(card, lv + 1)));
+        box.appendChild(h('div', 'margin-top:6px;font-size:15px;line-height:1.35', !card ? '경고 배지 참고' : maxed ? '최대 단계입니다' : cardDesc(card, lv + 1)));
         if (!maxed) box.addEventListener('click', (e) => { e.stopPropagation(); select(i, k); });
         cards.appendChild(box);
       }
