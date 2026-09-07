@@ -63,7 +63,7 @@
       "randV": 0.10,
       "randH": 0.20,
       "recovery": { "delay": 50, "speed": 25 },
-      "spread": { "base": 0.30, "bloom": 0.02, "max": 0.8, "decay": 8.0 },
+      "spread": { "base": 0.30, "bloom": 0.25, "max": 2.4, "decay": 4.0 },
       "ads": { "allowed": true, "recoil": 0.80, "spread": 0.5, "time": 180, "fov": 65 },
       "cap": { "on": false, "deg": 5 },
       "damage": 140,
