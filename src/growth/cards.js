@@ -9,7 +9,7 @@
 //     recoilH      hMax·h0(curve) / arr 수평(array) ×                                    — 반동 바닥값 40 %
 //   행동 — effective.perks에 실린다. shooter · movement · viewModel이 읽는다
 //     headshotRefund  헤드샷 명중 시 탄약 환급 (발)          breakFree       정지 상태 첫 N발 퍼짐 0
-//     breakSpreadMul  퍼짐 전체 배율                          killResetBloom  처치 시 bloom 초기화
+//     breakSpreadMul  퍼짐 전체 배율 (브레이킹 Lv3 · 총열 개조. 곱으로 합성)  killResetBloom  처치 시 bloom 초기화 (T45 이후 쓰는 카드 없음)
 //     killDamageBuff  처치 후 5 s 피해 +비율                  enhancedEvery   N발째마다 피해 ×2 (0 = 없음)
 //     killAmmo        처치 시 탄약 (숫자 = +N발, 'full' = 가득, 'free' = 10 s 무한)
 //     adsKickMul      정조준 중 뷰모델 반동 연출 ×             adsMoveFree     정조준 이동 페널티 없음
@@ -32,9 +32,9 @@ export const CARDS = {
       effects: { breakFree: [0, 3, 5, 5], breakSpreadMul: [1, 1, 1, 0.5] },
     },
     {
-      name: '멀티킬',
-      desc: ['—', '적 처치 시 퍼짐 초기화', '적 처치 시 퍼짐 초기화 + 5초간 피해 +25%', '적 처치 시 퍼짐 초기화 + 5초간 피해 +100%'],
-      effects: { killResetBloom: [false, true, true, true], killDamageBuff: [0, 0, 0.25, 1.0] },
+      name: '총열 개조',   // T45 (사용자 결정 2026-09-07): 멀티킬 → 탄퍼짐 감소. 지향·이동·연사 누적 전부에 곱한다 (조준원도 같이 줄어든다)
+      desc: ['—', '탄퍼짐 −15%', '탄퍼짐 −30%', '탄퍼짐 −50%'],
+      effects: { breakSpreadMul: [1, 0.85, 0.70, 0.50] },
     },
   ],
   pubg: [
