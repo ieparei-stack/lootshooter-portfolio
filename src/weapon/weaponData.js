@@ -25,6 +25,7 @@
 //   falloff.start / end (m) / minRatio   거리 감쇠 구간과 최소 피해 비율
 //   reloadTime     재장전 시간 (s)
 //   moveSpreadMul  걷기 최고속도일 때 퍼짐 배율 (속도에 비례해 1~이 값)
+//   moveSpreadCap  이동 사격 상한 — 이동 중 조준원(base × ADS × 자세 × 이동배율)의 몇 배까지 (T42 사용자 결정. 0 = 없음, 빠지면 0)
 //   crouchSpreadMul 웅크린 동안 퍼짐 배율 (T35. 1 = 변화 없음, CS형 0.7은 T36)
 //   viewTracking   누적 반동 중 카메라가 따라가는 비율 0~1 (T35). 탄은 항상 100% 올라가고 카메라는 이 비율만큼만 —
 //                  0.45면 탄 25°에 화면 11° (CS 감각). 1 = 카메라와 탄도 일치 (T35 이전 동작)
@@ -84,6 +85,7 @@ const SCHEMA = [
   { path: 'falloff.minRatio', type: 'number', def: 0.5, min: 0, max: 1 },
   { path: 'reloadTime',    type: 'number', def: 2.0, min: 0 },
   { path: 'moveSpreadMul', type: 'number', def: 2.0, min: 0 },
+  { path: 'moveSpreadCap', type: 'number', def: 0, min: 0, optional: true },   // T42 이동 사격 상한 = 이동 중 조준원 × 이 값 (0 = 없음). 빠지면 0
   { path: 'crouchSpreadMul', type: 'number', def: 1.0, min: 0 },   // T35
   { path: 'viewTracking',    type: 'number', def: 1.0, min: 0, max: 1 },   // T35. 빠지거나 범위 밖이면 경고 + 1 (카메라 = 탄도)
 ];

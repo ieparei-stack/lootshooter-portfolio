@@ -43,7 +43,7 @@ export const TABS = [
       F('ads.fov', '정조준 FOV (°)'),
       F('ads.time', '조준 시간 (ms)'), F('ads.spread', '퍼짐 배율'), F('ads.recoil', '반동 배율'),
     ] },
-    { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)'), F('crouchSpreadMul', '웅크리기 퍼짐 배율')] },
+    { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)'), F('moveSpreadCap', '이동 사격 상한 (이동 조준원 ×, 0=없음)'), F('crouchSpreadMul', '웅크리기 퍼짐 배율')] },
     { title: '고급', adv: true, fields: [
       F('randV'), F('randH'),
       { ...byPath['arrMul.v'], label: '고정 배열 스케일 수직' }, { ...byPath['arrMul.h'], label: '고정 배열 스케일 수평' },

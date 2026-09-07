@@ -80,9 +80,21 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
   function stanceMul() {
     return movement.state.crouched ? weapon.crouchSpreadMul : 1;
   }
+  // 현재 퍼짐 (퍽 적용 전). S = min(base + bloom, max) × ADS × 자세 = 정지 기준. 이동은 S × 이동배율.
+  // T42 이동 사격 상한 (사용자 결정 2026-09-07): moveSpreadCap > 0이면 이동 중 결과를 max(이동 중 조준원 × cap, S)로 막는다.
+  //   이동 중 조준원 = base × ADS × 자세 × 이동배율 (누적 없음). 걸으며 연사해도 그 cap배를 넘지 않고, 정지 연사 크기(S)보다 작아지지도 않는다.
+  function currentSpread() {
+    const st = ads.spreadMul() * stanceMul();
+    const mul = moveMul();
+    const s = spread.current(st, 1);
+    const moved = s * mul;
+    const cap = weapon.moveSpreadCap;
+    if (!(cap > 0) || mul <= 1) return moved;
+    return Math.min(moved, Math.max(weapon.spread.base * st * mul * cap, s));
+  }
 
   function fireOne(nowMs) {
-    const sp = spreadWithPerks(spread.current(ads.spreadMul(), moveMul() * stanceMul()), recoil.state.shotIdx);   // 반동 누적 전 = 이번 탄 번호
+    const sp = spreadWithPerks(currentSpread(), recoil.state.shotIdx);   // 반동 누적 전 = 이번 탄 번호
     const kicked = recoil.fire(nowMs, ads.recoilMul());   // { v, h, idx } — T30 뷰모델 반동에 씀
     const p = perks();
     let enhanced = false;
@@ -164,7 +176,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     state.firing = canFire;
     recoil.update(nowMs, canFire, dtSec);
     spread.update(dtSec, canFire);
-    state.currentSpread = spreadWithPerks(spread.current(ads.spreadMul(), moveMul() * stanceMul()), recoil.state.shotIdx);   // 다음 탄 기준 (브레이킹이면 조준원이 점)
+    state.currentSpread = spreadWithPerks(currentSpread(), recoil.state.shotIdx);   // 다음 탄 기준 (브레이킹이면 조준원이 점)
   }
 
   return { state, update, fireOne, startReload, cancelReload, buffRemain };
