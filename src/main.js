@@ -14,6 +14,7 @@ import { showWarnings } from './ui/warnings.js';
 import { createWeaponInfo } from './ui/weaponInfo.js';
 import { createCrosshair } from './ui/crosshair.js';
 import { createHitmarker } from './ui/hitmarker.js';
+import { createReloadRing } from './ui/reloadRing.js';
 import { createDamageNumbers } from './ui/damageNumbers.js';
 import { restoreTuning } from './ui/tuningPanel.js';
 import { createWeaponPanel } from './ui/weaponPanel.js';
@@ -225,6 +226,7 @@ const view = createView(camera, () => loadout.current());   // T35: 정조준 FO
 // T38 정조준 이동 페널티: 현재 무기의 정조준 진행도 + 조준 보정 Lv3(perks.adsMoveFree)
 movement.setAdsEase(() => { const k = loadout.current(); return { ease: k.ads.state.ease, free: !!(k.weapon.perks && k.weapon.perks.adsMoveFree) }; });
 crosshair = createCrosshair();
+const reloadRing = createReloadRing();   // T51 재장전 링 — 조준원 바깥 호
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
 // 키 1~3 직접 전환 (라인업 3정 — COD형 제외, 사용자 결정 2026-09-05), 휠 순환 전환, R 재장전(현재 무기)
@@ -307,7 +309,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, growthPick, runStats, resultScreen, restartRun, events: { emit } };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, reloadRing, viewModel, accuracy, growth, growthPick, runStats, resultScreen, restartRun, events: { emit } };
 }
 
 // T39: 강화 선택 화면 동안 게임 정지. 게임 시각 now = 실시간 − 정지 누적. shooter·recoil의 재장전·버프·패턴 리셋 타이머가 전부 이 now를 받으므로
@@ -353,6 +355,7 @@ startLoop((dt) => {
   playerHud.setDead(health.respawnRemain());
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   damageNumbers.setAnchor(crosshair.radius());   // 피해 숫자를 조준원 바로 오른쪽 위에
+  reloadRing.set(crosshair.ring.hidden ? null : shooter.state.reloadProgress, crosshair.radius());   // T51: 메뉴·오버레이로 조준원이 숨으면 링도 숨김
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
   weaponInfo.setBuffs(shooter.buffRemain(now));   // T38 멀티킬 피해 · 탄약 무한 남은 시간
   patternOverlay.draw(kit);
