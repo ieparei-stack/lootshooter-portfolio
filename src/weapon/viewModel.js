@@ -93,9 +93,13 @@ export function createViewModel(renderer, { getKit }) {
     state.weaponId = weapon ? weapon.id : null;
   }
 
-  // 발사: 반동 각도(°)에 비례해 뒤로 밀리고 총구가 들린다
+  // 발사: 반동 각도(°)에 비례해 뒤로 밀리고 총구가 들린다. T38 조준 보정: 정조준 중 perks.adsKickMul (ease에 비례)
   function kick(recoil) {
-    const v = recoil ? Math.abs(recoil.v || 0) : 0.3, h = recoil ? (recoil.h || 0) : 0;
+    const kit = getKit();
+    const e = kit ? kit.ads.state.ease : 0;
+    const km = kit && kit.weapon.perks ? kit.weapon.perks.adsKickMul : 1;
+    const scale = 1 + (km - 1) * e;
+    const v = (recoil ? Math.abs(recoil.v || 0) : 0.3) * scale, h = (recoil ? (recoil.h || 0) : 0) * scale;
     state.kick.z += v * V.kickBack;
     state.kick.pitch += v * V.kickPitch;
     state.kick.yaw += h * V.kickYaw;

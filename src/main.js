@@ -35,6 +35,7 @@ import { createPauseMenu } from './ui/pauseMenu.js';
 import { createWeaponCard } from './ui/weaponCard.js';
 import { createSound } from './audio/sound.js';
 import { createViewModel } from './weapon/viewModel.js';
+import { createGrowth } from './growth/growth.js';
 import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -72,6 +73,20 @@ showWarnings(warnings);
 // 튜닝 패널(T17.5): 파일 값을 보관하고, 저장된 튜닝이 있으면 kit을 만들기 전에 weapon에 덮어쓴다
 const tuning = restoreTuning(weapons);
 const weaponInfo = createWeaponInfo();
+// T38 강화: weapons[i] = 튜닝 층, growth.effective[i] = 튜닝 × 강화 = 최종. kit은 effective를 잡는다 (아래 makeKit).
+//   튜닝이 바뀌면 growth.refresh(i) → 반동 재컴파일 + 탄창 비율 유지 (onRefresh). 지원하지 않는 카드 필드는 경고 배지.
+let loadout = null;   // 아래에서 만든다 (onRefresh가 kits를 참조)
+const growth = createGrowth(weapons, tuning.origs, {
+  onRefresh: (i, eff, prevMag) => {
+    const kit = loadout ? loadout.kits[i] : null;
+    if (!kit) return;
+    kit.recoil.recompile();
+    const s = kit.shooter.state;
+    if (prevMag > 0 && eff.mag !== prevMag) s.mag = Math.min(eff.mag, Math.round(s.mag * eff.mag / prevMag));   // 탄창이 늘면 현재 탄도 비율 유지
+    if (i === loadout.state.index) weaponInfo.set(eff);
+  },
+});
+showWarnings(growth.warnings);
 
 // 탄자국 + 명중 피드백 + 조준선(원) — 무기와 무관한 공용 요소
 const marks = createImpactMarks(scene);
@@ -108,8 +123,8 @@ const accuracy = createAccuracy();
 let accuracyLines = [];   // 플레이어 세팅 그룹의 줄 (아래에서 만든다)
 function refreshAccuracy() { accuracy.summary(weapons).forEach((t, i) => { if (accuracyLines[i]) accuracyLines[i].textContent = t; }); }
 
-function onFire({ origin, dir, yaw, pitch, hit }) {
-  tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
+function onFire({ origin, dir, yaw, pitch, hit, enhanced = false }) {   // enhanced = T38 강화탄 (굵은 트레이서·강조 숫자)
+  tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir, enhanced);
   if (player.state.z > RANGE.zFar) {
     const w = loadout.current().weapon;
     const onTarget = !!(hit && hit.collider && hit.collider.system === targets && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0);
@@ -119,11 +134,12 @@ function onFire({ origin, dir, yaw, pitch, hit }) {
   if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
     hitmarker.show(hit.part, crosshair.radius());   // 조준원 바깥에 붙는 마커
     emit('hit', { part: hit.part });
-    damageNumbers.add(hit.point, hit.result.damage, hit.part);
+    damageNumbers.add(hit.point, hit.result.damage, hit.part, enhanced);
   }
 }
 
 // 무기마다 정조준·반동·퍼짐·발사 한 벌(kit). 전환(T16)은 loadout이 맡는다 — 시작 무기 = 라인업 1번 (CS형)
+// T38: weapon = growth.effective[i] (최종값). 반동·퍼짐·정조준·피해·탄창·이론 궤적·뷰모델이 전부 강화된 값을 읽는다
 function makeKit(weapon) {
   const ads = createAds(weapon, gunButtons);
   const recoil = createRecoil(weapon);
@@ -135,7 +151,7 @@ function makeKit(weapon) {
 const weaponCard = createWeaponCard();   // T26.3 전환 카드 (첫 무기 장착 때는 안 띄운다)
 let loadoutReady = false;
 let weaponPanel = null;   // 아래에서 만든다 (kits가 필요)
-const loadout = createLoadout(weapons, makeKit, (kit, i) => {
+loadout = createLoadout(growth.effective, makeKit, (kit, i) => {
   if (loadoutReady) { weaponCard.show(kit.weapon); emit('weaponSwitch'); }
   weaponInfo.set(kit.weapon);
   weaponInfo.setLineup(weapons, i);
@@ -147,12 +163,15 @@ const viewModel = createViewModel(renderer, { getKit: () => loadout.current() })
 renderer.autoClear = false;   // 본 씬 → clearDepth → 뷰모델 씬 순서로 그리기 위해 수동 clear
 // T26.4 무기 세팅 패널 — 튜닝 패널(T17.5) 대체. 드롭다운으로 고른 무기를 편집한다 (장착 무기와 무관)
 weaponPanel = createWeaponPanel({
-  weapons, kits: loadout.kits, origs: tuning.origs, arrMuls: tuning.arrMuls, curveMuls: tuning.curveMuls,
+  weapons, kits: loadout.kits, origs: tuning.origs, arrMuls: tuning.arrMuls, curveMuls: tuning.curveMuls, growth,
   notice: tuning.dropped.length ? `파일 값이 바뀌어 저장된 튜닝을 초기화했습니다: ${tuning.dropped.map((id) => (weapons.find((w) => w.id === id) || { name: id }).name).join(', ')}` : null,   // T36
-  onChange: (w) => { if (w === loadout.current().weapon) weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
+  // T38: 튜닝이 바뀌면 최종값(effective)을 다시 계산한다 — onRefresh가 recompile·탄창·슬롯 표시를 맡는다
+  onChange: (w) => { growth.refresh(weapons.indexOf(w)); weaponInfo.setLineup(weapons, loadout.state.index); },
 });
 weaponPanel.setEquipped(loadout.state.index);
 const view = createView(camera, () => loadout.current());   // T35: 정조준 FOV는 무기별 ads.fov
+// T38 정조준 이동 페널티: 현재 무기의 정조준 진행도 + 조준 보정 Lv3(perks.adsMoveFree)
+movement.setAdsEase(() => { const k = loadout.current(); return { ease: k.ads.state.ease, free: !!(k.weapon.perks && k.weapon.perks.adsMoveFree) }; });
 const crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
@@ -219,7 +238,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, events: { emit } };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, events: { emit } };
 }
 
 startLoop((dt) => {
@@ -251,6 +270,7 @@ startLoop((dt) => {
   crosshair.set(shooter.state.currentSpread, view.state.fov);
   damageNumbers.setAnchor(crosshair.radius());   // 피해 숫자를 조준원 바로 오른쪽 위에
   weaponInfo.setAmmo(shooter.state.mag, weapon.mag, shooter.state.reloadProgress);
+  weaponInfo.setBuffs(shooter.buffRemain(now));   // T38 멀티킬 피해 · 탄약 무한 남은 시간
   patternOverlay.draw(kit);
   renderer.clear();
   renderer.render(scene, camera);

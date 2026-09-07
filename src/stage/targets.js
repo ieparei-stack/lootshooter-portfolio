@@ -118,7 +118,7 @@ export function createTargets(scene) {
     if (!hit.part || !t || !t.kind) return { damage: 0, part: null, killed: false, ratio: 1 };   // 표적이 아닌 것
     if (t.kind === 'paper') return { damage: 0, part: 'paper', killed: false, ratio: 1 };
     if (t.down) return { damage: 0, part: hit.part, killed: false, ratio: 1 };
-    const { damage, ratio } = computeDamage(weapon, hit.part, hit.distance);
+    const { damage, ratio } = computeDamage(weapon, hit.part, hit.distance, hit.damageMul ?? 1);   // T38 강화 배율
     t.hp = Math.max(0, t.hp - damage);
     t.flash[hit.part] = FLASH_TIME;
     let killed = false;

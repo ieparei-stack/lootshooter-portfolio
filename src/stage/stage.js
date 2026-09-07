@@ -2,6 +2,7 @@ import { ROOMS, buildRoom, openDoor, closeDoor } from './arena.js';
 import { createWaveZone, makeWaves, makeBossWaves } from './waves.js';
 import { RANGE, floorText } from './range.js';
 import { createGuide } from './guide.js';
+import { config } from '../config.js';
 
 // 스테이지 흐름 (T26): 사격장 → 구역 1 → 구역 2 → 구역 3 → 보스. 사용자 결정(2026-09-04):
 //   모든 웨이브 처치 = 클리어 → 다음 방 문이 열린다(벽 사라짐). 되돌아갈 수 있다. 구역 2는 종류당 +1, 구역 3은 +2 마리.
@@ -43,7 +44,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null }) 
 
   const zones = rooms.map((room, i) => createWaveZone(scene, {
     player, monsters,
-    waves: room.boss ? makeBossWaves(room) : makeWaves(room, i),   // 구역 1: +0, 2: +1, 3: +2
+    waves: room.boss ? makeBossWaves(room) : makeWaves(room, i, config.monster.zoneHpMul[i] ?? 1),   // 구역 1: +0, 2: +1, 3: +2. HP 배율 1.0/1.1/1.2 (T38)
     triggerZ: room.triggerZ, endZ: room.endZ, label: room.label, boss: room.boss,
     onClear: () => {
       openDoor(room, scene, blocks); state.lastCleared = i;

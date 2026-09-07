@@ -45,9 +45,11 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
 
   function eye() { return { x: player.state.x, y: player.state.eyeHeight, z: player.state.z }; }
 
-  function spawn(kind, x, z, { floorY = 0, bounds = null, summoned = false } = {}) {
+  // T38: hpMul = 구역 HP 배율 (waves.js 정의에 실려 온다). 슬라이더의 기본 HP 위에 곱한다
+  function spawn(kind, x, z, { floorY = 0, bounds = null, summoned = false, hpMul = 1 } = {}) {
     const S = SHAPE[kind];
     const C = config.monster[kind];
+    const hp = Math.round(C.hp * hpMul);
     const group = new THREE.Group();            // 위치·회전(플레이어를 향함)·쓰러짐
     const rig = new THREE.Group();              // 근접 공격 시 앞으로 내미는 몸
     group.add(rig);
@@ -91,7 +93,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     const m = {
       id: `${kind}-${nextId++}`, kind, group, rig, bar, fill, lasers,
       pos: { x, z }, yaw: 0, floorY, bounds, summoned,
-      hp: C.hp, hpMax: C.hp, alive: true, dead: false,
+      hp, hpMax: hp, alive: true, dead: false,
       state: 'idle',       // idle | chase | attack(근접 준비) | cooldown | dead
       timer: 0,            // 상태 타이머 (s)
       aimT: 0,             // 원거리: 조준선이 보인 시간 (s)
@@ -162,7 +164,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
   function applyHit(hit, weapon) {
     const m = hit.target;
     if (!m || !m.alive || m.dead) return { damage: 0, part: hit.part, killed: false, ratio: 1 };
-    const { damage, ratio } = computeDamage(weapon, hit.part, hit.distance);
+    const { damage, ratio } = computeDamage(weapon, hit.part, hit.distance, hit.damageMul ?? 1);   // T38 강화 배율
     m.hp = Math.max(0, m.hp - damage);
     m.flash[hit.part] = FLASH_TIME;
     if (m.state === 'idle') m.state = 'chase';   // 맞으면 즉시 인지
@@ -226,7 +228,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     const z = m.bounds ? m.bounds.maxZ + 2 : m.pos.z + 3;
     for (let i = 0; i < n; i++) {
       const x = m.pos.x + (i - (n - 1) / 2) * 3;
-      spawn('melee', x, z, { summoned: true }).state = 'chase';
+      spawn('melee', x, z, { summoned: true, hpMul: C.summonHpMul ?? 1 }).state = 'chase';
     }
   }
 

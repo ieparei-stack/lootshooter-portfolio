@@ -18,6 +18,7 @@ export const config = {
     walkSpeed: 5.5,             // m/s (SPEC 확정)
     sprintMul: 1.5,             // 질주 배율, 앞으로 갈 때만 (SPEC 확정)
     crouchMul: 0.5,             // 웅크리기 배율 (SPEC 확정)
+    adsMoveMul: 0.6,            // T38 정조준 중 걷기 속도 배율 (사용자 결정 2026-09-07: 페널티 신설. 수치는 Claude 임시). PUBG형 조준 보정 Lv3만 ×1
     accelTime: 0.08,            // 정지→최고속도 도달 시간 (초, 임시 수치)
     decelTime: 0.10,            // 최고속도→정지 시간 (초, 임시 수치)
     crouchBlendTime: 0.12,      // 눈높이 1.7↔1.0 전환 시간 (초, 임시 수치)
@@ -51,6 +52,7 @@ export const config = {
   // 나머지는 Claude 임시 수치 — 데모 안정화까지 자유 조정 (CLAUDE.md 3-2).
   monster: {
     aggroRange: 30,             // 인지 거리 (m). 시야가 있어야 함. 맞으면 즉시 인지
+    zoneHpMul: [1.0, 1.1, 1.2], // T38 구역 1·2·3 몬스터 HP 배율 (근접·원거리 모두). 사용자 설계 2026-09-07 — 슬라이더의 기본 HP 위에 곱한다
     radius: 0.4,                // 충돌 반지름 (m)
     melee: {
       hp: 3000,                 // 사용자 결정 (레버)
@@ -84,6 +86,7 @@ export const config = {
       summonCount: 2,           // 한 번에
       summonInterval: 10,       // 소환 간격 (s)
       summonMax: 4,             // 살아있는 소환수 상한
+      summonHpMul: 1.0,         // T38 소환 근접형 HP 배율 (사용자 결정 2026-09-07: 기본 그대로)
     },
   },
   // 4단계 트리거 존 + 웨이브 (T23). 웨이브 구성 자체는 stage/waves.js 코드에 둔다.

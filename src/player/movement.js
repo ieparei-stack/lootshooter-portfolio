@@ -24,6 +24,17 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
 
   keyboard.onPress('KeyC', () => { state.crouched = !state.crouched; });
 
+  // T38 정조준 이동 페널티 (사용자 결정 2026-09-07): 정조준 진행도(ease)에 비례해 걷기 속도 × config.player.adsMoveMul.
+  // adsSource() → { ease, free }. free(PUBG형 조준 보정 Lv3)면 페널티 없음. main.js가 현재 무기 kit에서 넘긴다
+  let adsSource = null;
+  function setAdsEase(fn) { adsSource = fn; }
+  function adsMul() {
+    if (!adsSource) return 1;
+    const a = adsSource();
+    if (!a || !(a.ease > 0) || a.free) return 1;
+    return 1 + (config.player.adsMoveMul - 1) * a.ease;
+  }
+
   function update(dt) {
     const P = config.player;
 
@@ -47,7 +58,7 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
 
     // 3. 목표 속도
     const mul = state.sprinting ? P.sprintMul : (state.crouched ? P.crouchMul : 1);
-    const targetSpeed = moving ? P.walkSpeed * mul : 0;
+    const targetSpeed = moving ? P.walkSpeed * mul * adsMul() : 0;   // T38 정조준 이동 페널티
     const tx = dx * targetSpeed, tz = dz * targetSpeed;
 
     // 4. 속도를 목표로 일정 비율로 이동 — 입력 있으면 accelTime, 없으면 decelTime 안에 도달
@@ -76,5 +87,5 @@ export function createMovement(playerCamera, keyboard, blocks = []) {
     else cam.eyeHeight += Math.sign(de) * eyeStep;
   }
 
-  return { state, update, blockSprint };
+  return { state, update, blockSprint, setAdsEase, adsMul };
 }

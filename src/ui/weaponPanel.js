@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { cloneWeapon, getPath } from '../weapon/weaponData.js';
 import { FIELDS, fieldVisible, applyTuning, curveMulOf, diffPaths, toJson, saveTuning, clearTuning } from './tuningPanel.js';
+import { CARD_COUNT, MAX_LEVEL, cardDesc } from '../growth/cards.js';
 
 // 무기 세팅 패널 (T26.4). 우측 고정 폭, 드롭다운(무기 선택) + 탭 3개(스펙·핸들링·성장). 튜닝 패널(T17.5)을 대체한다.
 //   - 탭 이름은 나중에 데이터 구조 문서의 층 이름이 된다. 슬라이더↔JSON 키 대응은 TASKS.md T26.4 표.
@@ -12,6 +13,8 @@ import { FIELDS, fieldVisible, applyTuning, curveMulOf, diffPaths, toJson, saveT
 //   - T35: 정조준 FOV는 전역이 아니라 무기별 ads.fov. 반동 묶음에 시각 추적(viewTracking), 이동 묶음에 웅크리기 퍼짐 배율(crouchSpreadMul).
 //   - 행: ● 변경 표시 · 숫자 입력 · 슬라이더 · 더블클릭 = 파일 값 복원. 탭 옆 변경 개수 배지.
 //   - localStorage ui.weaponPanel.v1 = { tab, advOpen }. 선택 무기는 기억하지 않고 항상 1번(CS형)에서 시작 (사용자 지시 2026-09-06). 튜닝 값은 tuning.v1 그대로 (tuningPanel.js).
+//   - T38 성장 탭: 드롭다운으로 고른 무기의 강화 카드 3장(핵심/보조 없음, Lv +/− 개발 확인용, 현재·다음 Lv 문구) + 수치 효과 표(행 = 강화가 건드리는 필드, 열 = 원본·튜닝·강화·최종).
+//     슬라이더·복원·초기화는 튜닝 층(weapon)만 만지고, onChange에서 main.js가 growth.refresh로 최종값을 다시 계산한다. 탄창 클램프도 거기서(ctx에 shooter를 넘기지 않는다).
 export const UI_KEY = 'ui.weaponPanel.v1';
 
 const byPath = Object.fromEntries(FIELDS.map((f) => [f.path, f]));
@@ -70,7 +73,7 @@ function readUi() { try { return JSON.parse(localStorage.getItem(UI_KEY) || '{}'
 function writeUi(u) { try { localStorage.setItem(UI_KEY, JSON.stringify(u)); } catch { /* 저장 불가 */ } }
 
 // notice: 세션 동안 헤더 아래에 보이는 안내 한 줄 (T36: 파일 값이 바뀌어 저장 튜닝을 버렸을 때). null이면 없음
-export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, onChange = null, notice = null }) {
+export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, growth = null, onChange = null, notice = null }) {
   const ui = { tab: 'spec', advOpen: false, ...readUi(), weaponIndex: 0 };   // 선택 무기는 항상 1번(CS형)부터
   if (!TABS.some((t) => t.id === ui.tab)) ui.tab = 'spec';
   if (!(ui.weaponIndex >= 0 && ui.weaponIndex < weapons.length)) ui.weaponIndex = 0;
@@ -94,7 +97,7 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
     const i = state.index;
     return { i, weapon: weapons[i], orig: origs[i], arrMul: arrMuls[i], curveMul: curveMuls[i], recoil: kits[i]?.recoil, shooter: kits[i]?.shooter };
   }
-  function ctxOf(c) { return { arrMul: c.arrMul, curveMul: c.curveMul, recoil: c.recoil, shooter: c.shooter }; }
+  function ctxOf(c) { return { arrMul: c.arrMul, curveMul: c.curveMul, recoil: c.recoil }; }   // shooter 없음: 탄창 클램프는 growth 최종값 기준으로 main.js onRefresh가 (T38)
   function persistUi() { writeUi({ tab: ui.tab, advOpen: ui.advOpen }); }
 
   // 값 읽기/쓰기/복원 — 필드 종류별
@@ -160,7 +163,7 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
 
     const tab = TABS.find((t) => t.id === ui.tab);
     if (tab.id === 'growth') {
-      root.appendChild(el('div', 'opacity:0.7;padding:12px 0', '현재 성장 단계 없음'));
+      renderGrowth(c);
     } else {
       for (const g of tab.groups) {
         const fields = g.fields.filter((f) => f.global || fieldVisible(f, w));
@@ -193,7 +196,6 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
       for (const k of Object.keys(fresh)) w[k] = fresh[k];
       c.arrMul.v = 1; c.arrMul.h = 1; c.curveMul.v = 1; c.curveMul.h = 1;
       if (c.recoil) c.recoil.recompile();
-      if (c.shooter) c.shooter.state.mag = Math.min(c.shooter.state.mag, w.mag);
       clearTuning(w.id);
       if (onChange) onChange(w);
       render();
@@ -205,6 +207,59 @@ export function createWeaponPanel({ weapons, kits, origs, arrMuls, curveMuls, on
       else copy.textContent = '아래에서 복사';
       out.focus(); out.select();
     });
+  }
+
+  // T38 성장 탭: 카드 3장 (Lv +/− · 현재/다음 Lv 문구) + 수치 효과 네 층 표. 행동 효과(환급·브레이킹·처치 버프…)는 문구로만 보인다
+  const fmtCell = (v) => (typeof v === 'number' ? String(Math.round(v * 1000) / 1000) : String(v));
+  function renderGrowth(c) {
+    if (!growth) { root.appendChild(el('div', 'opacity:0.7;padding:12px 0', '강화 없음')); return; }
+    const w = c.weapon;
+    const cards = el('div', 'margin-top:4px');
+    for (let k = 0; k < CARD_COUNT; k++) {
+      const card = growth.card(w.id, k);
+      const lv = growth.level(w.id, k);
+      const box = el('div', 'margin-top:6px;padding:6px 8px;border-radius:4px;background:rgba(255,255,255,0.06)');
+      const head = el('div', 'display:flex;align-items:center;gap:6px');
+      if (!card) {
+        head.appendChild(el('span', 'flex:1;opacity:0.5', `${k + 1}. 지원 안 함 (경고 배지 참고)`));
+        box.appendChild(head); cards.appendChild(box); continue;
+      }
+      head.appendChild(el('span', 'flex:1;font-weight:700', `${k + 1}. ${card.name}`));
+      head.appendChild(el('span', 'font-variant-numeric:tabular-nums', `Lv ${lv}/${MAX_LEVEL}`));
+      const mk = (txt, dis, d) => {
+        const b = el('button', BTN + ';padding:1px 7px' + (dis ? ';opacity:0.35;cursor:default' : ''), txt);
+        b.disabled = dis;
+        b.addEventListener('click', () => { growth.setLevel(w.id, k, lv + d); render(); });   // setLevel이 refresh → main.js onRefresh(recompile·탄창·슬롯)
+        return b;
+      };
+      head.append(mk('−', lv <= 0, -1), mk('+', lv >= MAX_LEVEL, +1));
+      box.appendChild(head);
+      const fl = growth.floored[c.i] && growth.floored[c.i][k];
+      box.appendChild(el('div', 'margin-top:2px;font-size:11px', (lv > 0 ? `현재: ${cardDesc(card, lv)}` : '현재: 없음') + (fl ? ' (바닥값)' : '')));
+      box.appendChild(el('div', 'margin-top:1px;font-size:11px;opacity:0.6', lv >= MAX_LEVEL ? '최대' : `다음: ${cardDesc(card, lv + 1)}`));
+      cards.appendChild(box);
+    }
+    root.appendChild(cards);
+
+    // 표: 수치 효과 — 필드 · 원본 · 튜닝 · 강화 · 최종
+    const rowsData = growth.rows(c.i);
+    if (rowsData.length) {
+      const table = el('table', 'width:100%;margin-top:10px;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums');
+      const tr = (cells, headRow) => {
+        const r = el('tr', headRow ? 'opacity:0.7' : 'border-top:1px solid rgba(255,255,255,0.12)');
+        cells.forEach((t, kk) => { const td = el(headRow ? 'th' : 'td', 'padding:3px 4px;text-align:' + (kk === 0 ? 'left' : 'right') + (headRow ? ';font-weight:700' : ''), t); r.appendChild(td); });
+        return r;
+      };
+      table.appendChild(tr(['필드', '원본', '튜닝', '강화', '최종'], true));
+      for (const row of rowsData) {
+        const mul = typeof row.mul === 'number' ? '×' + row.mul.toFixed(Math.abs(row.mul - Math.round(row.mul * 100) / 100) < 1e-9 ? 2 : 3) : String(row.mul);
+        const r = tr([row.label, fmtCell(row.orig), fmtCell(row.tuned), mul, fmtCell(row.final) + (row.floored ? ' (바닥값)' : '')]);
+        if (typeof row.mul === 'number' && Math.abs(row.mul - 1) > 1e-9) r.lastChild.style.color = '#7cc4ff';
+        table.appendChild(r);
+      }
+      root.appendChild(table);
+    }
+    root.appendChild(el('div', 'margin-top:6px;opacity:0.55;font-size:11px', '최종 = 튜닝 × 강화. 반동은 원본의 40 % 아래로 내려가지 않는다. 행동 효과(환급·브레이킹·처치 버프·강화탄·이동)는 문구대로 사격에 적용. Lv +/−는 개발 확인용 (선택 화면은 T39).'));
   }
 
   function countChanges(tab, c, diffs) {

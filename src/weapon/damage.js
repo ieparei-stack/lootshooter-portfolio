@@ -9,9 +9,9 @@ export function falloffRatio(distance, falloff) {
   return 1 + (minRatio - 1) * t;
 }
 
-// 한 발의 피해: 기본 피해 × (머리면 headshotMul) × 거리 감쇠
-export function computeDamage(weapon, part, distance) {
+// 한 발의 피해: 기본 피해 × (머리면 headshotMul) × 거리 감쇠 × extraMul (T38 강화 — 멀티킬 버프·강화탄. shooter가 hit.damageMul로 넘긴다)
+export function computeDamage(weapon, part, distance, extraMul = 1) {
   const ratio = falloffRatio(distance, weapon.falloff);
   const mul = part === 'head' ? weapon.headshotMul : 1;
-  return { damage: weapon.damage * mul * ratio, ratio, mul };
+  return { damage: weapon.damage * mul * ratio * extraMul, ratio, mul };
 }

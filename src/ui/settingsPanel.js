@@ -67,6 +67,8 @@ export function createSettingsPanel() {
     get: () => P.sprintMul, set: (v) => { P.sprintMul = v; }, format: (v) => '×' + v.toFixed(2) });
   addSlider({ label: '웅크리기 배율', min: 0.2, max: 3.0, step: 0.05,
     get: () => P.crouchMul, set: (v) => { P.crouchMul = v; }, format: (v) => '×' + v.toFixed(2) });
+  addSlider({ label: '정조준 이동 배율', min: 0.2, max: 1.0, step: 0.05,   // T38
+    get: () => P.adsMoveMul, set: (v) => { P.adsMoveMul = v; }, format: (v) => '×' + v.toFixed(2) });
   addSlider({ label: '지향 FOV (°)', min: 60, max: 120, step: 1,
     get: () => R.fov, set: (v) => { R.fov = v; }, format: (v) => String(v) });
   addSlider({ label: '정조준 FOV 기본 (°, 무기에 값 없을 때)', min: 30, max: 170, step: 1,   // T35: 무기별 ads.fov가 우선

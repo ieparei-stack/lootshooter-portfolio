@@ -34,15 +34,16 @@ export function createDamageNumbers(poolSize = 20) {
     root.style.bottom = `calc(50% + ${v + 8}px)`;
   }
 
-  function add(_point, damage, part) {
+  // strong = T38 강화탄 (더 크고 청록색. 머리면 주황)
+  function add(_point, damage, part, strong = false) {
     const it = items[next];
     next = (next + 1) % items.length;
     it.t = 0;
     it.active = true;
     const head = part === 'head';
     it.el.textContent = String(Math.round(damage));
-    it.el.style.color = head ? '#ffd24a' : '#fff';
-    it.el.style.fontSize = head ? '24px' : '18px';
+    it.el.style.color = strong ? (head ? '#ffb347' : '#7dfaff') : (head ? '#ffd24a' : '#fff');
+    it.el.style.fontSize = strong ? '30px' : (head ? '24px' : '18px');
     it.el.style.transform = 'translateY(0)';
     it.el.style.opacity = '1';
     it.el.style.display = 'block';

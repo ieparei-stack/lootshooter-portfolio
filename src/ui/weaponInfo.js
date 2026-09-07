@@ -21,6 +21,9 @@ export function createWeaponInfo() {
   fill.style.cssText = 'height:100%;width:0%;background:#7cc4ff';
   bar.appendChild(fill);
 
+  // T38 버프 줄 (멀티킬 피해 · 탄약 무한 남은 시간). 없으면 비어 있고 높이 0
+  const buffs = document.createElement('div');
+  buffs.style.cssText = 'font-size:12px;color:#7dfaff;font-variant-numeric:tabular-nums;white-space:nowrap';
   const name = document.createElement('div');
   name.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:4px';
   const stats = document.createElement('div');
@@ -29,6 +32,7 @@ export function createWeaponInfo() {
   lineup.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.2);white-space:pre;font-size:12px';
   root.appendChild(ammo);
   root.appendChild(bar);
+  root.appendChild(buffs);
   root.appendChild(name);
   root.appendChild(stats);
   root.appendChild(lineup);
@@ -95,5 +99,18 @@ export function createWeaponInfo() {
     if (w !== lastW) { lastW = w; fill.style.width = w + '%'; }
   }
 
-  return { root, set, setAmmo, setLineup };
+  let lastBuff = '';
+  // b = shooter.buffRemain(now): { damage: s, freeAmmo: s, damageBuff: 비율 }
+  function setBuffs(b) {
+    const parts = [];
+    if (b && b.damage > 0) parts.push(`피해 +${Math.round(b.damageBuff * 100)}% ${b.damage.toFixed(1)}s`);
+    if (b && b.freeAmmo > 0) parts.push(`탄약 무한 ${b.freeAmmo.toFixed(1)}s`);
+    const text = parts.join(' · ');
+    if (text === lastBuff) return;
+    lastBuff = text;
+    buffs.textContent = text;
+    buffs.style.marginBottom = text ? '4px' : '0';
+  }
+
+  return { root, set, setAmmo, setLineup, setBuffs };
 }
