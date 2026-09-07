@@ -9,7 +9,7 @@ export const config = {
     maxPixelRatio: 2,
   },
   ground: {
-    size: 420,                  // 한 변 길이 (m). 보스 방 z −198까지 덮는다 (T26. T17 때는 120)
+    size: 440,                  // 한 변 길이 (m). 보스 방 z −208까지 덮는다 (T33에서 구역 2가 10 m 길어짐. T26 420, T17 120)
     color: 0x8a8a8a,            // 회색
   },
   player: {
