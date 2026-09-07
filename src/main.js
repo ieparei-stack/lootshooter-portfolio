@@ -258,6 +258,7 @@ mg.addSlider({ label: '정예 원거리 HP (리셋 후 적용)', min: 500, max: 
 mg.addSlider({ label: '근접형 속도 (m/s)', min: 2, max: 10, step: 0.5, get: () => M.melee.speed, set: (v) => { M.melee.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '원거리형 속도 (m/s)', min: 2, max: 8, step: 0.5, get: () => M.ranged.speed, set: (v) => { M.ranged.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '조준선 딜레이 (s)', min: 0.2, max: 2.0, step: 0.1, get: () => M.ranged.aimDelay, set: (v) => { M.ranged.aimDelay = v; }, format: (v) => v.toFixed(1) });
+mg.addSlider({ label: '조준선 표시 지연 (s, 딜레이보다 크면 조준선 없이 발사)', min: 0, max: 1.5, step: 0.1, get: () => M.laserDelay, set: (v) => { M.laserDelay = v; }, format: (v) => v.toFixed(1) });   // T55
 mg.addSlider({ label: '근접형 피해', min: 5, max: 300, step: 5, get: () => M.melee.damage, set: (v) => { M.melee.damage = v; } });
 mg.addSlider({ label: '원거리형 피해', min: 5, max: 300, step: 5, get: () => M.ranged.damage, set: (v) => { M.ranged.damage = v; } });
 mg.addSlider({ label: '보스 HP (리셋 후 적용)', min: 5000, max: 40000, step: 1000, get: () => M.boss.hp, set: (v) => { M.boss.hp = v; } });

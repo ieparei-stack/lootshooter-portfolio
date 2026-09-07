@@ -39,12 +39,12 @@ const REMOVE_TIME = 1.0;       // 쓰러진 뒤 사라지기까지 (s)
 const LASER_FLASH_TIME = 0.1;  // 발사 순간 조준선이 희게 번쩍 (s)
 const LASER_AIM_DROP = 0.6;    // 조준선 끝 = 플레이어 눈보다 이만큼 아래(가슴). 눈을 정확히 향하면 화면에서 점으로만 보인다
 const LASER_RADIUS = 0.015;    // 조준선 굵기 (m). WebGL 선은 1px 고정이라 원기둥으로 그린다
-const MUZZLE_FWD = 0.45;       // 총구를 몸 앞으로 내미는 거리 (m)
+const MUZZLE_FWD = 0.45;       // 총구를 몸 앞으로 내미는 거리 (m) — 머리 앞
 const LUNGE = 0.45;            // 근접 공격 준비 시 몸을 내미는 거리 (m)
 const PLAYER_RADIUS = 0.35;    // config.player.radius와 같음 — 몬스터가 카메라 안으로 파고들지 않게
 
 // 총구 높이: 몸 높이의 3/4 (근접·원거리 1.2 근처, 보스 2.25)
-const muzzleY = (S) => S.body.h * 0.75;
+const muzzleY = (S) => S.body.h + S.head / 2;   // 조준선·발사 원점 높이 = 머리 중심 (사용자 결정 2026-09-07, 이전 몸통 0.75)
 
 export function createMonsters(scene, { blocks = [], player, tracers = null, onPlayerHit = null } = {}) {
   const list = [];
@@ -113,7 +113,8 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
       hp, hpMax: hp, alive: true, dead: false,
       state: 'idle',       // idle | chase | attack(근접 준비) | cooldown | dead
       timer: 0,            // 상태 타이머 (s)
-      aimT: 0,             // 원거리: 조준선이 보인 시간 (s)
+      aimT: 0,             // 원거리: 조준을 시작한 뒤 경과 (s). laserDelay 전엔 조준선 없음 (T55)
+      aiming: false,       // 원거리: 조준 진행 중 (T55 — 시작엔 시야가 필요하지만, 시작한 뒤엔 시야를 잃어도 aimDelay에 쏜다. 벽에 막히면 벽 피격)
       cooldownT: 0,        // 원거리: 발사 후 남은 대기 (s)
       laserFlash: 0,
       summonT: -1,         // 보스: 다음 소환까지 (s). −1 = 아직 소환 단계 아님
@@ -223,17 +224,29 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
   }
   // 조준선 끝점: 플레이어 가슴
   function laserEnd(e) { return { x: e.x, y: e.y - LASER_AIM_DROP, z: e.z }; }
+  // T55: 머리 중심 → 플레이어 눈 직선이 벽에 막히는지. 막히면 { blocked: true, point } (조준선·발사 끝점을 벽에서 끊는다 — 벽 너머로 새어 보이지 않게)
+  function wallBetween(m) {
+    const e = eye();
+    const o = { x: m.pos.x, y: m.floorY + muzzleY(m.shape), z: m.pos.z };
+    const wx = e.x - o.x, wy = e.y - o.y, wz = e.z - o.z;
+    const len = Math.hypot(wx, wy, wz) || 1;
+    const hit = raycastWorld(o, { x: wx / len, y: wy / len, z: wz / len }, blocks, len, []);
+    return hit && hit.distance < len - 0.01 ? { blocked: true, point: hit.point } : { blocked: false, point: laserEnd(e) };
+  }
 
   // 총구 전부에서 동시에 발사 (보스는 2발 → 각각 피해)
+  // 발사: 총구 → 플레이어 눈. T55: 벽이 먼저 맞으면(플레이어가 숨음) 트레이서·섬광은 벽까지, 피해 없음.
+  //   막힘 판정은 hasLOS와 같이 몸 중심(벽에 붙어 서도 벽 안에 들어가지 않는 점)에서 쏜다 — 총구 끝은 벽을 뚫고 나갈 수 있다
   function fireRanged(m, C, ux, uz) {
-    const e = eye();
+    const { blocked, point: end } = wallBetween(m);
+    m.lastShotBlocked = blocked;
     m.shape.muzzles.forEach((off, i) => {
       const muzzle = muzzleOf(m, ux, uz, off);
-      const vx = e.x - muzzle.x, vy = e.y - muzzle.y, vz = e.z - muzzle.z;
+      const vx = end.x - muzzle.x, vy = end.y - muzzle.y, vz = end.z - muzzle.z;
       const len = Math.hypot(vx, vy, vz) || 1;
-      if (tracers) tracers.add(muzzle, laserEnd(e), { x: vx / len, y: vy / len, z: vz / len });
-      setLaser(m.lasers[i], muzzle, laserEnd(e), COLOR.laserFlash);
-      if (onPlayerHit) onPlayerHit(C.damage, m.kind, m);
+      if (tracers) tracers.add(muzzle, end, { x: vx / len, y: vy / len, z: vz / len });
+      setLaser(m.lasers[i], muzzle, end, COLOR.laserFlash);
+      if (!blocked && onPlayerHit) onPlayerHit(C.damage, m.kind, m);
     });
     m.laserFlash = LASER_FLASH_TIME;
   }
@@ -311,22 +324,29 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
           m.laserFlash -= dt;
           if (m.laserFlash <= 0) for (const l of m.lasers) l.visible = false;
         }
+        // T55: 조준 시작에는 사거리 + 시야가 필요. 시작한 뒤엔 시야를 잃어도(플레이어가 벽 뒤로) 멈추지 않고 aimDelay에 쏜다(벽에 막히면 벽 피격).
+        //   → 플레이어가 다시 나와도 몬스터가 조준을 붙들고 기다리는 일이 없다. 조준선은 laserDelay가 지난 뒤부터 보인다.
         if (m.cooldownT > 0) {
           m.cooldownT -= dt;
-          m.aimT = 0;
-        } else if (m.state !== 'idle' && dist <= C.fireRange && hasLOS(m)) {
-          m.aimT += dt;
-          if (m.aimT >= C.aimDelay) {
-            fireRanged(m, C, ux, uz);
-            emit('rangedFire', { dist });
-            m.aimT = 0;
-            m.cooldownT = C.cooldown;
-          } else {
-            m.shape.muzzles.forEach((off, i) => setLaser(m.lasers[i], muzzleOf(m, ux, uz, off), laserEnd(e), COLOR.laser));
-          }
+          m.aimT = 0; m.aiming = false;
         } else {
-          m.aimT = 0;
-          if (m.laserFlash <= 0) for (const l of m.lasers) l.visible = false;
+          if (!m.aiming && m.state !== 'idle' && dist <= C.fireRange && hasLOS(m)) { m.aiming = true; m.aimT = 0; m.lastShotBlocked = false; }
+          if (m.aiming) {
+            m.aimT += dt;
+            if (m.aimT >= C.aimDelay) {
+              fireRanged(m, C, ux, uz);
+              emit('rangedFire', { dist });
+              m.aimT = 0; m.aiming = false;
+              m.cooldownT = C.cooldown;
+            } else if (m.aimT >= config.monster.laserDelay) {
+              const end = wallBetween(m).point;   // 벽 뒤면 조준선이 벽에서 끊긴다
+              m.shape.muzzles.forEach((off, i) => setLaser(m.lasers[i], muzzleOf(m, ux, uz, off), end, COLOR.laser));
+            } else if (m.laserFlash <= 0) {
+              for (const l of m.lasers) l.visible = false;
+            }
+          } else if (m.laserFlash <= 0) {
+            for (const l of m.lasers) l.visible = false;
+          }
         }
         // 보스 소환 단계: HP가 기준 이하로 떨어진 순간 1회, 이후 summonInterval마다
         if (m.kind === 'boss' && m.state !== 'idle' && m.hp <= m.hpMax * C.summonHpRatio) {
