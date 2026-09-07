@@ -10,20 +10,34 @@ import { RANGE, floorLine } from './range.js';
 //   clear     : 끝. 더 이상 스폰하지 않는다
 //   hold      : 플레이어 사망 중 (T24). 몬스터 전부 제거, 진행 정지. 부활 시 restartCurrent() → 같은 웨이브를 countdown부터
 // 사용자 결정(2026-09-04): 3웨이브 근접2 → 원거리2 → 근접2+원거리2, 웨이브 간 5초 카운트다운. 구역 2는 종류당 +1, 구역 3은 +2 (T26).
+// T47 (사용자 확정 2026-09-07): 정예는 구역 1 웨이브 3에 1기 첫 등장 → 구역 3 웨이브 3은 절반. 그 사이 선형 (WAVE_TABLE).
 // 근접형은 단 앞 바닥, 원거리형·보스는 단 위(floorY/bounds). HUD는 stage.js가 hudText()를 모아 하나로 그린다.
 
 const COLOR = { zone: 0xff4040 };
 
-// 방 웨이브 3개 생성. extra = 종류당 추가 마릿수. 좌표는 방 안에서 균등 배치 (Claude 임시)
-// T46: 구역 HP 배율 제거 — 구역 난이도는 정예 비율(T47)이 맡는다. 정의에 elite: true를 실으면 monsters.spawn이 정예 티어로 띄운다
-export function makeWaves(room, extra = 0) {
+// T47 스폰 웨이브 표 — 구역(0~2) × 웨이브(3) × 그룹 { kind, n, elite(마릿수) }. 정예 비율 1-3 25 % → 3-3 50 % 선형, 마릿수 반올림 (TASKS T47 표).
+// 웨이브 크기는 T26 그대로 (구역 1: 2/2/4, 2: 3/3/6, 3: 4/4/8). 정예는 그룹 안 가운데 자리 (플레이어가 먼저 보게)
+export const WAVE_TABLE = [
+  [[{ kind: 'melee', n: 2, elite: 0 }], [{ kind: 'ranged', n: 2, elite: 0 }], [{ kind: 'melee', n: 2, elite: 1 }, { kind: 'ranged', n: 2, elite: 0 }]],
+  [[{ kind: 'melee', n: 3, elite: 1 }], [{ kind: 'ranged', n: 3, elite: 1 }], [{ kind: 'melee', n: 3, elite: 1 }, { kind: 'ranged', n: 3, elite: 1 }]],
+  [[{ kind: 'melee', n: 4, elite: 2 }], [{ kind: 'ranged', n: 4, elite: 2 }], [{ kind: 'melee', n: 4, elite: 2 }, { kind: 'ranged', n: 4, elite: 2 }]],
+];
+
+// 방 웨이브 3개 생성 (WAVE_TABLE[zone]). 좌표는 방 안에서 균등 배치 (Claude 임시). 정의의 elite: true는 monsters.spawn이 정예 티어로 띄운다 (T46)
+export function makeWaves(room, zone = 0) {
   const p = room.platform;
   const onPlatform = { floorY: p.height, bounds: p.bounds };
   const spread = (n, lo, hi) => Array.from({ length: n }, (_, i) => (n === 1 ? (lo + hi) / 2 : lo + (hi - lo) * i / (n - 1)));
-  const melee = (n) => spread(n, -6, 6).map((x) => ({ kind: 'melee', x, z: room.floorZ }));
-  const ranged = (n) => spread(n, p.minX + 1.5, p.maxX - 1.5).map((x) => ({ kind: 'ranged', x, z: p.minZ + 2, ...onPlatform }));
-  const n = 2 + extra;
-  return [melee(n), ranged(n), [...melee(n), ...ranged(n)]];
+  // 가운데에 가까운 자리부터 e개를 정예로
+  const eliteFlags = (n, e) => { const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2)); const f = Array(n).fill(false); order.slice(0, e).forEach((i) => { f[i] = true; }); return f; };
+  const group = ({ kind, n, elite }) => {
+    const flags = eliteFlags(n, elite);
+    return kind === 'melee'
+      ? spread(n, -6, 6).map((x, i) => ({ kind, x, z: room.floorZ, elite: flags[i] }))
+      : spread(n, p.minX + 1.5, p.maxX - 1.5).map((x, i) => ({ kind, x, z: p.minZ + 2, elite: flags[i], ...onPlatform }));
+  };
+  const table = WAVE_TABLE[Math.max(0, Math.min(WAVE_TABLE.length - 1, zone))];
+  return table.map((groups) => groups.flatMap(group));
 }
 
 // 보스 방: 웨이브 1개 = 보스 (단 위 중앙). 소환수는 monsters.js가 스폰하며 aliveCount에 포함 → 전부 죽어야 clear
@@ -34,12 +48,12 @@ export function makeBossWaves(room) {
 
 export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ = -Infinity, label = '구역', boss = false, onClear = null } = {}) {
   const W = config.wave;
-  const state = { phase: 'armed', index: -1, timer: 0, alive: 0 };   // index = 현재(또는 다음에 뜰) 웨이브 번호 0~
+  const state = { phase: 'armed', index: -1, timer: 0, alive: 0, eliteAlive: 0 };   // index = 현재(또는 다음에 뜰) 웨이브 번호 0~. eliteAlive = 살아있는 정예 (T47 HUD)
   if (scene) floorLine(scene, triggerZ - 0.4, RANGE.doorHalf * 2, 0.5, { color: COLOR.zone, transparent: true, opacity: 0.65 });   // 문 안쪽 빨간 띠
 
   function spawnWave(i) {
     for (const d of waves[i]) monsters.spawn(d.kind, d.x, d.z, d);
-    state.alive = monsters.aliveCount();   // 스폰 프레임의 HUD가 0으로 찍히지 않게
+    state.alive = monsters.aliveCount(); state.eliteAlive = monsters.aliveCount(true);   // 스폰 프레임의 HUD가 0으로 찍히지 않게
     emit(boss ? 'bossSpawn' : 'waveSpawn');
   }
 
@@ -52,7 +66,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
       state.timer -= dt;
       if (state.timer <= 0) { spawnWave(state.index); setPhase('wave'); }
     } else if (state.phase === 'wave') {
-      state.alive = monsters.aliveCount();
+      state.alive = monsters.aliveCount(); state.eliteAlive = monsters.aliveCount(true);
       if (state.alive === 0) {
         if (state.index >= waves.length - 1) { setPhase('clear'); if (onClear) onClear(); }   // zoneClear 이벤트(클리어 음)는 stage가 문을 열 때 쏜다 (T39: 강화 확정 뒤)
         else { state.index++; setPhase('countdown', W.betweenDelay); }
@@ -64,7 +78,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
   function hudText() {
     const n = waves.length;
     if (state.phase === 'countdown') return `${label} · 웨이브 ${state.index + 1}/${n} — ${Math.max(0, state.timer).toFixed(1)}초 후 등장`;
-    if (state.phase === 'wave') return boss ? `보스 · 남은 몬스터 ${state.alive}` : `${label} · 웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive}`;
+    if (state.phase === 'wave') return boss ? `보스 · 남은 몬스터 ${state.alive}` : `${label} · 웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive} (정예 ${state.eliteAlive})`;   // T47 정예 수 병기
     return null;
   }
   function clearText() { return boss ? '보스 처치 — 데모 완료' : `${label} 클리어 — 초록 선을 따라 가세요`; }
@@ -74,7 +88,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
   function holdForRespawn() {
     if (state.phase !== 'wave') return false;
     monsters.reset([]);
-    state.alive = 0;
+    state.alive = 0; state.eliteAlive = 0;
     setPhase('hold');
     return true;
   }
@@ -87,7 +101,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
 
   // 대기 상태로 (몬스터 제거는 stage가 한 번에)
   function reset() {
-    state.index = -1; state.alive = 0;
+    state.index = -1; state.alive = 0; state.eliteAlive = 0;
     setPhase('armed');
   }
 

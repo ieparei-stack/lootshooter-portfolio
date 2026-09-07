@@ -144,10 +144,10 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     ch.max[0] = m.pos.x + head / 2; ch.max[1] = fy + body.h + head; ch.max[2] = m.pos.z + head / 2;
   }
 
-  // 살아서 싸우는 수 (쓰러지는 연출 중은 제외) — 웨이브 종료 판정(T23)
-  function aliveCount() {
+  // 살아서 싸우는 수 (쓰러지는 연출 중은 제외) — 웨이브 종료 판정(T23). T47: elite를 주면 그 티어만 (true = 정예, false = 일반)
+  function aliveCount(elite = null) {
     let n = 0;
-    for (const m of list) if (m.alive && !m.dead) n++;
+    for (const m of list) if (m.alive && !m.dead && (elite === null || !!m.elite === elite)) n++;
     return n;
   }
 
