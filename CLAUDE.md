@@ -31,7 +31,7 @@
 | 언어 | JavaScript (ESM). TypeScript 아님 |
 | 빌드 | Vite |
 | 개발 실행 | `npm run dev` → 브라우저에서 URL 열어 플레이 |
-| 제출본 | `npm run build` → **`dist/index.html` 파일 하나**. 더블클릭하면 실행되어야 한다 |
+| 제출본 | `npm run build` → **루트 `게임실행.html` 파일 하나**(dist/index.html 복사본, git 포함). 더블클릭하면 실행되어야 한다 |
 | 버전 관리 | git. T01에서 Claude가 `git init`과 `.gitignore`를 처리한다 |
 | 폴더 구조 | **T01에서 Claude가 제안하고 사용자 승인 후 확정** |
 

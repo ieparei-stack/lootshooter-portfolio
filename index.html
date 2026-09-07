@@ -7,10 +7,15 @@
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
     #app { display: block; width: 100vw; height: 100vh; }
+    /* file://로 index.html을 직접 열면 모듈 스크립트가 안 돌아 이 안내만 남는다. 실행되면 main.js가 지운다. */
+    #dev-notice { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #fff; background: #000; font: 20px/1.6 sans-serif; text-align: center; white-space: pre-line; }
   </style>
 </head>
 <body>
   <canvas id="app"></canvas>
+  <div id="dev-notice">개발용 파일입니다 — 게임실행.html을 여세요
+(npm run dev로 열면 게임이 실행됩니다)</div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

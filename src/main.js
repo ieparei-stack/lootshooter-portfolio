@@ -44,6 +44,7 @@ import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
 const canvas = document.getElementById('app');
+document.getElementById('dev-notice')?.remove();   // index.html 더블클릭용 안내 — 실행되면 지운다
 const { renderer, scene, camera } = createRenderer(canvas);
 
 // 조명 — 반구광(전체 밝기) + 방향광(박스 면 구분). 그림자 없음.
