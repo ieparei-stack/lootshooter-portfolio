@@ -1,4 +1,4 @@
-import { ROOMS, buildRoom, openDoor, closeDoor } from './arena.js';
+import { ROOMS, buildRoom, openDoor, closeDoor, sealEntrance, unsealEntrance } from './arena.js';
 import { createWaveZone, makeWaves, makeBossWaves } from './waves.js';
 import { RANGE, floorText } from './range.js';
 import { createGuide } from './guide.js';
@@ -50,6 +50,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
     player, monsters,
     waves: room.boss ? makeBossWaves(room) : makeWaves(room, i),   // 구역 1: +0, 2: +1, 3: +2. 구역 HP 배율은 T46에서 제거
     triggerZ: room.triggerZ, endZ: room.endZ, label: room.label, boss: room.boss,
+    onStart: () => sealEntrance(room, scene, blocks),   // T54: 웨이브 시작 → 들어온 입구 봉쇄 (클리어해도 안 열림)
     onClear: () => {
       const finish = () => {
         emit('zoneClear');   // T29 클리어 음 — T39 강화 확정 뒤(문 열림과 함께) 한 번
@@ -99,7 +100,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
   function reset() {
     monsters.reset([]);
     for (const z of zones) z.reset();
-    for (const r of rooms) closeDoor(r, scene, blocks);
+    for (const r of rooms) { closeDoor(r, scene, blocks); unsealEntrance(r, scene, blocks); }   // T54 입구는 여기서만 열린다
     for (const g of guides) if (g) g.hide();
     state.current = -1; state.lastCleared = -1;
     if (prompt) prompt.clear();

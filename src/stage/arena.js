@@ -103,7 +103,10 @@ export function buildRoom(scene, blocks, spec) {
 
   for (const b of own) { scene.add(meshOf(b)); blocks.push(b); }
   const doorMesh = door ? meshOf(door) : null;
-  const room = { spec, id: spec.id, label: spec.label, boss: !!spec.boss, platform: p, door, doorMesh, open: false,
+  // T54 입구 봉쇄 블록: 앞 방 뒷벽의 문 자리(zNear + T/2, 구역 1은 사격장 백스톱 문과 같은 z). 웨이브 시작 시 sealEntrance로 넣고 M 리셋에서만 뺀다
+  const entrance = { pos: [0, 0, spec.zNear + T / 2], size: [DOOR_HALF * 2, H, T], color: COLOR.door, entrance: true };
+  const entranceMesh = meshOf(entrance);
+  const room = { spec, id: spec.id, label: spec.label, boss: !!spec.boss, platform: p, door, doorMesh, open: false, entrance, entranceMesh, sealed: false,
     triggerZ: spec.zNear - 0.5, endZ: spec.zFar, floorZ: p.maxZ + 3 };   // 발동 = triggerZ~endZ 사이(이 방 안). floorZ = 단 앞 바닥 스폰 줄
   closeDoor(room, scene, blocks);
   floorText(scene, spec.label, 0, spec.zNear - 4, 3);
@@ -118,6 +121,21 @@ export function openDoor(room, scene, blocks) {
   scene.remove(room.doorMesh);
   room.open = true;
   emit('door');
+}
+// T54 입구 봉쇄/개방 — 웨이브 시작 시 뒤쪽(들어온) 문 자리를 벽으로 막는다. 계속 닫힘(사용자 결정 2026-09-07), stage.reset에서만 연다
+export function sealEntrance(room, scene, blocks) {
+  if (room.sealed) return;
+  if (!blocks.includes(room.entrance)) blocks.push(room.entrance);
+  if (scene && !room.entranceMesh.parent) scene.add(room.entranceMesh);
+  room.sealed = true;
+  emit('door');
+}
+export function unsealEntrance(room, scene, blocks) {
+  if (!room.sealed) return;
+  const i = blocks.indexOf(room.entrance);
+  if (i >= 0) blocks.splice(i, 1);
+  if (scene) scene.remove(room.entranceMesh);
+  room.sealed = false;
 }
 export function closeDoor(room, scene, blocks) {
   if (!room.door) return;

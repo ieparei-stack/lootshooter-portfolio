@@ -46,7 +46,7 @@ export function makeBossWaves(room) {
   return [[{ kind: 'boss', x: (p.minX + p.maxX) / 2, z: (p.minZ + p.maxZ) / 2 - 1, floorY: p.height, bounds: p.bounds }]];
 }
 
-export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ = -Infinity, label = '구역', boss = false, onClear = null } = {}) {
+export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ = -Infinity, label = '구역', boss = false, onClear = null, onStart = null } = {}) {   // onStart: 발동(armed → countdown) 순간 — T54 입구 봉쇄
   const W = config.wave;
   const state = { phase: 'armed', index: -1, timer: 0, alive: 0, eliteAlive: 0 };   // index = 현재(또는 다음에 뜰) 웨이브 번호 0~. eliteAlive = 살아있는 정예 (T47 HUD)
   if (scene) floorLine(scene, triggerZ - 0.4, RANGE.doorHalf * 2, 0.5, { color: COLOR.zone, transparent: true, opacity: 0.65 });   // 문 안쪽 빨간 띠
@@ -61,7 +61,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
 
   function update(dt) {
     if (state.phase === 'armed') {
-      if (player.state.z < triggerZ && player.state.z > endZ) { state.index = 0; setPhase('countdown', W.firstDelay); }
+      if (player.state.z < triggerZ && player.state.z > endZ) { state.index = 0; setPhase('countdown', W.firstDelay); if (onStart) onStart(); }
     } else if (state.phase === 'countdown') {
       state.timer -= dt;
       if (state.timer <= 0) { spawnWave(state.index); setPhase('wave'); }
