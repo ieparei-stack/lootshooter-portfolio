@@ -80,6 +80,10 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
   function stanceMul() {
     return movement.state.crouched ? weapon.crouchSpreadMul : 1;
   }
+  // T50 자세 반동 배율: 웅크린 동안 crouchRecoilMul (수직·수평 공통, 정조준 배율과 곱)
+  function stanceRecoilMul() {
+    return movement.state.crouched ? weapon.crouchRecoilMul : 1;
+  }
   // 현재 퍼짐 (퍽 적용 전). S = min(base + bloom, max) × ADS × 자세 = 정지 기준. 이동은 S × 이동배율.
   // T42 이동 사격 상한 (사용자 결정 2026-09-07): moveSpreadCap > 0이면 이동 중 결과를 max(이동 중 조준원 × cap, S)로 막는다.
   //   이동 중 조준원 = base × ADS × 자세 × 이동배율 (누적 없음). 걸으며 연사해도 그 cap배를 넘지 않고, 정지 연사 크기(S)보다 작아지지도 않는다.
@@ -95,7 +99,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
 
   function fireOne(nowMs) {
     const sp = spreadWithPerks(currentSpread(), recoil.state.shotIdx);   // 반동 누적 전 = 이번 탄 번호
-    const kicked = recoil.fire(nowMs, ads.recoilMul());   // { v, h, idx } — T30 뷰모델 반동에 씀
+    const kicked = recoil.fire(nowMs, ads.recoilMul() * stanceRecoilMul());   // { v, h, idx } — T30 뷰모델 반동에 씀. T50 웅크리기 배율
     const p = perks();
     let enhanced = false;
     if (p && p.enhancedEvery > 0) { state.enhancedCount++; if (state.enhancedCount >= p.enhancedEvery) { state.enhancedCount = 0; enhanced = true; } }

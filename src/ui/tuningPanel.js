@@ -37,6 +37,7 @@ export const FIELDS = [
   { group: '퍼짐', path: 'moveSpreadMul', label: '이동 배율 (걷기 최고속)', min: 1, max: 72, step: 0.1 },   // T42: CS형 24가 상한에 닿아 ×3 (T32 규칙대로)
   { group: '퍼짐', path: 'moveSpreadCap', label: '이동 사격 상한 (이동 조준원 ×, 0=없음)', min: 0, max: 5, step: 0.05 },   // T42
   { group: '퍼짐', path: 'crouchSpreadMul', label: '웅크리기 배율', min: 0.1, max: 3, step: 0.05 },   // T35
+  { group: '퍼짐', path: 'crouchRecoilMul', label: '웅크리기 반동 배율', min: 0.1, max: 3, step: 0.01 },   // T50
   { group: '정조준', path: 'ads.allowed', label: '정조준 가능', type: 'bool' },
   { group: '정조준', path: 'ads.recoil', label: '반동 배율', min: 0, max: 4.5, step: 0.01, when: 'ads' },
   { group: '정조준', path: 'ads.spread', label: '퍼짐 배율', min: 0, max: 4.5, step: 0.01, when: 'ads' },
@@ -158,7 +159,7 @@ export function clearTuning(id) {
 }
 
 // T35에서 추가된 키 — 옛 tuning.v1 저장분에 없으면 파일 값을 채워 넣고 검증한다 (저장된 튜닝을 잃지 않게)
-export const MIGRATE_PATHS = ['viewTracking', 'crouchSpreadMul', 'ads.fov', 'moveSpreadCap'];
+export const MIGRATE_PATHS = ['viewTracking', 'crouchSpreadMul', 'ads.fov', 'moveSpreadCap', 'crouchRecoilMul'];   // T50 crouchRecoilMul
 
 // 시작 시: 파일 값을 origs로 복사해 두고, 저장된 튜닝이 있으면 weapon에 덮어쓴다 (검증을 통과한 것만).
 // kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, curveMuls, restored, dropped }

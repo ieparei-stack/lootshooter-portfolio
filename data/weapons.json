@@ -27,6 +27,7 @@
       "moveSpreadMul": 20.0,
       "moveSpreadCap": 1.25,
       "crouchSpreadMul": 0.7,
+      "crouchRecoilMul": 1.0,
       "viewTracking": 1.0
     },
     {
@@ -49,7 +50,8 @@
       "reloadTime": 2.0,
       "moveSpreadMul": 2.0,
       "moveSpreadCap": 0,
-      "crouchSpreadMul": 1.0,
+      "crouchSpreadMul": 0.5,
+      "crouchRecoilMul": 0.67,
       "viewTracking": 1.0
     },
     {
@@ -73,6 +75,7 @@
       "moveSpreadMul": 1.3,
       "moveSpreadCap": 0,
       "crouchSpreadMul": 1.0,
+      "crouchRecoilMul": 1.0,
       "viewTracking": 1.0
     }
   ]
