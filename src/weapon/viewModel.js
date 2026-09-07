@@ -35,7 +35,9 @@ function arParts({ recv, hgLen, barrelLen, magTilt, magLen, stock, top, brake })
   if (top === 'handle')  P.push([0.025, 0.035, 0.12, 0, rh / 2 + 0.017, -rd * 0.45, 0, 'main']);              // 캐링핸들
   if (top === 'optic')   { P.push([0.05, 0.01, 0.16, 0, rh / 2 + 0.005, -rd * 0.5, 0, 'dark']); P.push([0.032, 0.036, 0.09, 0, rh / 2 + 0.028, -rd * 0.45, 0, 'dark']); }   // 레일 + 조준경
   if (brake) P.push([0.03, 0.03, 0.05, 0, 0.012, -rd - hgLen - barrelLen - 0.02, 0, 'dark']);                 // 총구 제동기
-  return P;
+  // T52: 총구 끝 로컬 좌표 (총열 끝, 제동기가 있으면 그 끝) — 트레이서 시작점
+  const muzzle = [0, 0.012, -rd - hgLen - barrelLen - (brake ? 0.045 : 0)];
+  return { parts: P, muzzle };
 }
 const SHAPES = {
   cs:   arParts({ recv: [0.05, 0.07, 0.24], hgLen: 0.15, barrelLen: 0.20, magTilt: 18, magLen: 0.14, stock: 'fixed', top: 'rear' }),
@@ -81,7 +83,7 @@ export function createViewModel(renderer, { getKit }) {
   // 총 만들기 — 이전 메쉬는 지운다
   function build(weapon) {
     for (const m of [...group.children]) { group.remove(m); m.geometry.dispose(); m.material.dispose(); }
-    const shape = SHAPES[weapon && weapon.id] || SHAPES.cs;
+    const shape = (SHAPES[weapon && weapon.id] || SHAPES.cs).parts;
     const base = new THREE.Color(colorOf(weapon));
     const mats = { main: new THREE.MeshLambertMaterial({ color: base }), dark: new THREE.MeshLambertMaterial({ color: base.clone().multiplyScalar(0.45) }) };
     for (const [w, h, d, x, y, z, rx, tone] of shape) {
@@ -141,6 +143,25 @@ export function createViewModel(renderer, { getKit }) {
     group.rotation.set(state.kick.pitch * DEG + reloadDip * 0.6 + swapDip * 0.6, (V.hipYaw * (1 - e) - state.kick.yaw) * DEG, 0);
   }
 
+  // T52: 총구 끝의 세계 좌표 — 트레이서 시작점. 뷰모델 카메라(원점·무회전·FOV 60)에서 본 총구의 화면 위치(NDC)를
+  //   본 카메라(FOV 75/정조준 55)의 같은 화면 위치·같은 거리로 되돌린다 → 화면상 총구 픽셀과 트레이서 시작 픽셀이 일치.
+  //   지향·정조준·반동 kick·재장전 dip 전부 group 위치에 들어 있으므로 그대로 따라간다. 뷰모델이 꺼져 있으면 null.
+  const _m = new THREE.Vector3();
+  function muzzleWorld(mainCamera) {
+    if (!state.enabled || state.weaponId === null) return null;
+    const mz = (SHAPES[state.weaponId] || SHAPES.cs).muzzle;
+    group.updateMatrixWorld(true);
+    _m.set(mz[0], mz[1], mz[2]);
+    group.localToWorld(_m);                 // 뷰모델 카메라 공간
+    const dist = _m.length();
+    _m.project(camera);                     // NDC
+    _m.z = 0.5;
+    mainCamera.updateMatrixWorld(true);
+    _m.unproject(mainCamera);               // 본 카메라의 같은 화면 위치를 지나는 광선 위 한 점
+    _m.sub(mainCamera.position).normalize().multiplyScalar(dist).add(mainCamera.position);
+    return { x: _m.x, y: _m.y, z: _m.z };
+  }
+
   function render() {
     if (!state.enabled) return;
     renderer.clearDepth();
@@ -148,5 +169,5 @@ export function createViewModel(renderer, { getKit }) {
   }
   function setEnabled(v) { state.enabled = !!v; save(); }
 
-  return { state, group, scene, camera, update, render, setEnabled, build };
+  return { state, group, scene, camera, update, render, setEnabled, build, muzzleWorld };
 }

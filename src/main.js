@@ -171,7 +171,7 @@ let accuracyLines = [];   // 플레이어 세팅 그룹의 줄 (아래에서 만
 function refreshAccuracy() { accuracy.summary(weapons).forEach((t, i) => { if (accuracyLines[i]) accuracyLines[i].textContent = t; }); }
 
 function onFire({ origin, dir, yaw, pitch, hit, enhanced = false }) {   // enhanced = T38 강화탄 (굵은 트레이서·강조 숫자)
-  tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir, enhanced);
+  tracers.add(viewModel.muzzleWorld(camera) || muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir, enhanced);   // T52: 뷰모델 총구 끝에서 출발 (뷰모델 꺼짐이면 옛 오프셋)
   if (player.state.z > RANGE.zFar) {
     const w = loadout.current().weapon;
     const onTarget = !!(hit && hit.collider && hit.collider.system === targets && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0);
