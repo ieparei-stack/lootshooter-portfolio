@@ -139,7 +139,7 @@ weaponPanel = createWeaponPanel({
   onChange: (w) => { if (w === loadout.current().weapon) weaponInfo.set(w); weaponInfo.setLineup(weapons, loadout.state.index); },
 });
 weaponPanel.setEquipped(loadout.state.index);
-const view = createView(camera, () => loadout.current().ads);
+const view = createView(camera, () => loadout.current());   // T35: 정조준 FOV는 무기별 ads.fov
 const crosshair = createCrosshair();
 const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반동 궤적
 
@@ -218,8 +218,9 @@ startLoop((dt) => {
   stage.update(dt);               // 트리거·스폰·웨이브 전이·문 열림 (monsters.update 앞 — 스폰된 프레임에 바로 움직인다)
   monsters.update(dt, camera);
   tracers.update(dt);
-  player.state.offYaw = recoil.state.offYaw;
-  player.state.offPitch = recoil.state.offPitch;
+  // T35 viewTracking: recoil.state.off*는 탄도 기준 누적 반동(100%). 카메라는 그중 viewTracking 비율만 따라간다 — 탄은 shooter가 100%로 쏜다
+  player.state.offYaw = recoil.state.offYaw * weapon.viewTracking;
+  player.state.offPitch = recoil.state.offPitch * weapon.viewTracking;
   player.apply();
   view.update();
   viewModel.update(dt);           // 카메라 확정 뒤 — ads ease·재장전 진행도·반동 반영

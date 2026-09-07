@@ -18,12 +18,16 @@
 //   recovery.speed 복귀 속도 (°/s). 보정분 제외
 //   spread.base    기본 퍼짐 (°)   spread.bloom 발당 누적 (°)   spread.max 상한 (°)   spread.decay 초당 회복 (°/s)
 //   ads.allowed    정조준 가능 여부   ads.recoil 반동 배율   ads.spread 퍼짐 배율   ads.time 조준 시간 (ms)
+//   ads.fov        정조준 FOV (°, 세로). 무기별 (T35). 없으면 config.render.adsFov — 선택 필드라 경고 없음
 //   cap.on / cap.deg   누적 수직 반동 상한 (°)
 // 3D에서 추가한 필드
 //   damage         발당 피해   headshotMul 머리 배율
 //   falloff.start / end (m) / minRatio   거리 감쇠 구간과 최소 피해 비율
 //   reloadTime     재장전 시간 (s)
 //   moveSpreadMul  걷기 최고속도일 때 퍼짐 배율 (속도에 비례해 1~이 값)
+//   crouchSpreadMul 웅크린 동안 퍼짐 배율 (T35. 1 = 변화 없음, CS형 0.7은 T36)
+//   viewTracking   누적 반동 중 카메라가 따라가는 비율 0~1 (T35). 탄은 항상 100% 올라가고 카메라는 이 비율만큼만 —
+//                  0.45면 탄 25°에 화면 11° (CS 감각). 1 = 카메라와 탄도 일치 (T35 이전 동작)
 
 // 기본값 = 기준 AR. 파일이 통째로 망가져도 이 값으로 플레이된다.
 export const BASELINE = Object.freeze({
@@ -33,12 +37,14 @@ export const BASELINE = Object.freeze({
   randV: 0.25, randH: 0.0,
   recovery: { delay: 110, speed: 7 },
   spread: { base: 0.34, bloom: 0.045, max: 0.95, decay: 1.6 },
-  ads: { allowed: true, recoil: 0.72, spread: 0.30, time: 250 },
+  ads: { allowed: true, recoil: 0.72, spread: 0.30, time: 250, fov: 59 },
   cap: { on: false, deg: 6 },
   damage: 200, headshotMul: 1.5,
   falloff: { start: 20, end: 50, minRatio: 0.5 },
   reloadTime: 2.0,
   moveSpreadMul: 2.0,
+  crouchSpreadMul: 1.0,
+  viewTracking: 1.0,
 });
 
 // 검증 표. when: 'curve' | 'array' 는 pattern.mode가 그 값일 때만 검사.
@@ -68,6 +74,7 @@ const SCHEMA = [
   { path: 'ads.recoil',  type: 'number', def: 0.72, min: 0 },
   { path: 'ads.spread',  type: 'number', def: 0.30, min: 0 },
   { path: 'ads.time',    type: 'number', def: 250, min: 0 },
+  { path: 'ads.fov',     type: 'number', def: 59, min: 30, max: 170, optional: true },   // T35 무기별 정조준 FOV. 없으면 config.render.adsFov와 같은 59
   { path: 'cap.on',  type: 'boolean', def: false },
   { path: 'cap.deg', type: 'number', def: 6, min: 0 },
   { path: 'damage',      type: 'number', def: 200, min: 0 },
@@ -77,6 +84,8 @@ const SCHEMA = [
   { path: 'falloff.minRatio', type: 'number', def: 0.5, min: 0, max: 1 },
   { path: 'reloadTime',    type: 'number', def: 2.0, min: 0 },
   { path: 'moveSpreadMul', type: 'number', def: 2.0, min: 0 },
+  { path: 'crouchSpreadMul', type: 'number', def: 1.0, min: 0 },   // T35
+  { path: 'viewTracking',    type: 'number', def: 1.0, min: 0, max: 1 },   // T35. 빠지거나 범위 밖이면 경고 + 1 (카메라 = 탄도)
 ];
 
 const ARRAY_SHOT_DEFAULT = [0.2, 0];

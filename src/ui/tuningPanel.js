@@ -26,6 +26,7 @@ export const FIELDS = [
   { group: '고정 배열 (30발 전체에 곱함)', path: 'arrMul.h', label: '수평 배율', min: 0, max: 9, step: 0.05, when: 'array', virtual: true },
   { group: '무작위', path: 'randV', label: '수직 지터 randV', min: 0, max: 3, step: 0.01 },
   { group: '무작위', path: 'randH', label: '수평 지터 randH', min: 0, max: 3, step: 0.01 },
+  { group: '시각', path: 'viewTracking', label: '시각 추적 (카메라 비율)', min: 0, max: 1, step: 0.05 },   // T35
   { group: '복귀', path: 'recovery.delay', label: '지연 delay (ms)', min: 0, max: 1500, step: 5 },
   { group: '복귀', path: 'recovery.speed', label: '속도 speed (°/s)', min: 0, max: 120, step: 0.5 },
   { group: '퍼짐', path: 'spread.base', label: '기본 base (°)', min: 0, max: 6, step: 0.01 },
@@ -33,10 +34,12 @@ export const FIELDS = [
   { group: '퍼짐', path: 'spread.max', label: '상한 max (°)', min: 0, max: 9, step: 0.01 },
   { group: '퍼짐', path: 'spread.decay', label: '회복 decay (°/s)', min: 0, max: 15, step: 0.05 },
   { group: '퍼짐', path: 'moveSpreadMul', label: '이동 배율 (걷기 최고속)', min: 1, max: 24, step: 0.1 },
+  { group: '퍼짐', path: 'crouchSpreadMul', label: '웅크리기 배율', min: 0.1, max: 3, step: 0.05 },   // T35
   { group: '정조준', path: 'ads.allowed', label: '정조준 가능', type: 'bool' },
   { group: '정조준', path: 'ads.recoil', label: '반동 배율', min: 0, max: 4.5, step: 0.01, when: 'ads' },
   { group: '정조준', path: 'ads.spread', label: '퍼짐 배율', min: 0, max: 4.5, step: 0.01, when: 'ads' },
   { group: '정조준', path: 'ads.time', label: '조준 시간 (ms)', min: 0, max: 1800, step: 10, when: 'ads' },
+  { group: '정조준', path: 'ads.fov', label: '정조준 FOV (°)', min: 30, max: 170, step: 1, when: 'ads' },   // T35 무기별 (전에는 전역 config.render.adsFov)
   { group: 'cap', path: 'cap.on', label: '누적 수직 상한 사용', type: 'bool' },
   { group: 'cap', path: 'cap.deg', label: '상한 (°)', min: 0, max: 45, step: 0.5, when: 'cap' },
 ];
@@ -144,6 +147,9 @@ export function clearTuning(id) {
   writeStore(store);
 }
 
+// T35에서 추가된 키 — 옛 tuning.v1 저장분에 없으면 파일 값을 채워 넣고 검증한다 (저장된 튜닝을 잃지 않게)
+export const MIGRATE_PATHS = ['viewTracking', 'crouchSpreadMul', 'ads.fov'];
+
 // 시작 시: 파일 값을 origs로 복사해 두고, 저장된 튜닝이 있으면 weapon에 덮어쓴다 (검증을 통과한 것만).
 // kit(recoil 컴파일)을 만들기 전에 불러야 한다. 반환: { origs, arrMuls, curveMuls, restored }
 export function restoreTuning(weapons) {
@@ -155,6 +161,7 @@ export function restoreTuning(weapons) {
   weapons.forEach((w, i) => {
     const s = store[w.id];
     if (!s || !s.weapon) return;
+    for (const p of MIGRATE_PATHS) if (getPath(s.weapon, p) === undefined) setPath(s.weapon, p, getPath(w, p));
     const { weapons: [norm], warnings } = loadWeapons({ weapons: [s.weapon] });
     if (warnings.length || norm.id !== w.id || norm.pattern.mode !== w.pattern.mode) { clearTuning(w.id); return; }
     for (const k of Object.keys(norm)) w[k] = norm[k];

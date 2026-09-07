@@ -3,6 +3,7 @@
 //
 // 상태 offYaw/offPitch는 "총이 밀어올린 누적 반동"이다. 플레이어의 조준각(aim)과 분리해 두어야
 // T09 복귀가 보정분(플레이어가 마우스로 내린 양)을 제외하고 off만 되돌릴 수 있다.
+// T35: off*는 **탄도 기준(100%)**. 카메라는 main.js가 off × weapon.viewTracking만 따라가게 한다. 복귀·cap은 여기(탄도)에 걸린다.
 // 부호: offPitch > 0 = 위, offYaw > 0 = 오른쪽 (시뮬레이터 규약). 카메라 합성은 camera.js가 맡는다.
 
 const PATTERN_LEN = 40;      // curve 모드를 펼치는 발 수 (시뮬레이터와 동일)

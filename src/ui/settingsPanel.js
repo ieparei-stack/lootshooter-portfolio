@@ -69,7 +69,7 @@ export function createSettingsPanel() {
     get: () => P.crouchMul, set: (v) => { P.crouchMul = v; }, format: (v) => '×' + v.toFixed(2) });
   addSlider({ label: '지향 FOV (°)', min: 60, max: 120, step: 1,
     get: () => R.fov, set: (v) => { R.fov = v; }, format: (v) => String(v) });
-  addSlider({ label: '정조준 FOV (°)', min: 30, max: 170, step: 1,
+  addSlider({ label: '정조준 FOV 기본 (°, 무기에 값 없을 때)', min: 30, max: 170, step: 1,   // T35: 무기별 ads.fov가 우선
     get: () => R.adsFov, set: (v) => { R.adsFov = v; }, format: (v) => String(v) });
 
   // 버튼 한 줄 추가 (T18: 탄착군 지우기). 잠금 해제 상태에서 누른다.

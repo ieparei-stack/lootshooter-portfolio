@@ -17,13 +17,15 @@
       "randH": 0.0,
       "recovery": { "delay": 80, "speed": 13 },
       "spread": { "base": 0.10, "bloom": 0.018, "max": 0.36, "decay": 2.2 },
-      "ads": { "allowed": false, "recoil": 1, "spread": 1, "time": 0 },
+      "ads": { "allowed": false, "recoil": 1, "spread": 1, "time": 0, "fov": 59 },
       "cap": { "on": false, "deg": 8 },
       "damage": 200,
       "headshotMul": 1.5,
       "falloff": { "start": 20, "end": 50, "minRatio": 0.5 },
       "reloadTime": 2.0,
-      "moveSpreadMul": 2.0
+      "moveSpreadMul": 2.0,
+      "crouchSpreadMul": 1.0,
+      "viewTracking": 1.0
     },
     {
       "id": "pubg",
@@ -37,13 +39,15 @@
       "randH": 0.10,
       "recovery": { "delay": 160, "speed": 5 },
       "spread": { "base": 0.42, "bloom": 0.040, "max": 0.85, "decay": 1.4 },
-      "ads": { "allowed": true, "recoil": 0.85, "spread": 0.18, "time": 350 },
+      "ads": { "allowed": true, "recoil": 0.85, "spread": 0.18, "time": 350, "fov": 59 },
       "cap": { "on": false, "deg": 7 },
       "damage": 200,
       "headshotMul": 1.5,
       "falloff": { "start": 20, "end": 50, "minRatio": 0.5 },
       "reloadTime": 2.0,
-      "moveSpreadMul": 2.0
+      "moveSpreadMul": 2.0,
+      "crouchSpreadMul": 1.0,
+      "viewTracking": 1.0
     },
     {
       "id": "d2",
@@ -57,13 +61,15 @@
       "randH": 0.03,
       "recovery": { "delay": 45, "speed": 26 },
       "spread": { "base": 0.30, "bloom": 0.022, "max": 0.45, "decay": 2.4 },
-      "ads": { "allowed": true, "recoil": 0.80, "spread": 0.40, "time": 200 },
+      "ads": { "allowed": true, "recoil": 0.80, "spread": 0.40, "time": 200, "fov": 59 },
       "cap": { "on": false, "deg": 5 },
       "damage": 200,
       "headshotMul": 1.5,
       "falloff": { "start": 20, "end": 50, "minRatio": 0.5 },
       "reloadTime": 2.0,
-      "moveSpreadMul": 2.0
+      "moveSpreadMul": 2.0,
+      "crouchSpreadMul": 1.0,
+      "viewTracking": 1.0
     }
   ]
 }

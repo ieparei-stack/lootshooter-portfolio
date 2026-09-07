@@ -44,13 +44,18 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
   function moveMul() {
     return 1 + (weapon.moveSpreadMul - 1) * (movement.state.speed / config.player.walkSpeed);
   }
+  // T35 자세 퍼짐 배율: 웅크린 동안 crouchSpreadMul (C 토글 즉시. 질주하면 웅크림이 풀리므로 자동 해제)
+  function stanceMul() {
+    return movement.state.crouched ? weapon.crouchSpreadMul : 1;
+  }
 
   function fireOne(nowMs) {
     const kicked = recoil.fire(nowMs, ads.recoilMul());   // { v, h, idx } — T30 뷰모델 반동에 씀
 
-    const sp = spread.current(ads.spreadMul(), moveMul());
+    const sp = spread.current(ads.spreadMul(), moveMul() * stanceMul());
     const s = spread.sample(sp);
     const lim = config.mouse.pitchLimit;
+    // 탄 방향 = 조준각 + 누적 반동 100% (탄도 기준). 카메라는 viewTracking 비율만 올라가 있으므로(main.js) 탄은 조준원보다 (1−viewTracking)×누적만큼 위로 나간다 (T35)
     const aimPitch = Math.max(-lim, Math.min(lim, player.state.pitch + recoil.state.offPitch));
     const yaw = player.state.yaw - recoil.state.offYaw - s.dYaw;     // dYaw > 0 = 오른쪽 = yaw 감소
     const pitch = aimPitch + s.dPitch;
@@ -70,7 +75,8 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     }
     state.lastHit = hit;
     if (onFire) onFire({ origin, dir, yaw, pitch, hit });   // 트레이서·히트마커·데미지 숫자 (T14)
-    emit('fire', { weapon, recoil: { v: kicked.v, h: kicked.h } });   // T29 발사음 (무기별) · T30 뷰모델 반동
+    const vt = weapon.viewTracking;
+    emit('fire', { weapon, recoil: { v: kicked.v * vt, h: kicked.h * vt } });   // T29 발사음 (무기별) · T30 뷰모델 반동 — 카메라 기준(× viewTracking, T35)
 
     spread.onShot();
     return { spread: sp, sample: s, hit };
@@ -116,7 +122,7 @@ export function createShooter(weapon, recoil, spread, ads, mouseButtons, deps) {
     state.firing = canFire;
     recoil.update(nowMs, canFire, dtSec);
     spread.update(dtSec, canFire);
-    state.currentSpread = spread.current(ads.spreadMul(), moveMul());
+    state.currentSpread = spread.current(ads.spreadMul(), moveMul() * stanceMul());
   }
 
   return { state, update, fireOne, startReload, cancelReload };

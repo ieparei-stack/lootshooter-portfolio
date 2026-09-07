@@ -7,7 +7,7 @@ import { directionFromAngles } from '../weapon/raycast.js';
 //   hMode 'random'이면 점 좌우로 ±|h| 막대. 여기에 cap 클램프(결정 룰)를 더해 실제 탄착과 맞춘다.
 //
 // 원점(궤적의 시작)은 "월드 고정":
-//   패턴 인덱스가 0(쉬는 중)이면 매 프레임 실제 조준 방향(yaw−offYaw, pitch+offPitch)을 따라가고,
+//   패턴 인덱스가 0(쉬는 중)이면 매 프레임 실제 조준 방향(yaw−offYaw, pitch+offPitch — recoil.state, 탄도 기준. T35 viewTracking과 무관하게 탄이 가는 자리)을 따라가고,
 //   첫 발이 나가면 그 직전 방향을 잠근다 → 반동으로 화면이 올라가도 궤적은 벽 위에 남아 T18 자국과 비교된다.
 //   사격 정지 500ms 후 recoil이 인덱스를 0으로 되돌리면 다시 조준선을 따라간다.
 //   beforeShoot()를 루프 맨 앞(shooter.update 전)에서 불러야 첫 발 직전 방향이 정확히 잡힌다.

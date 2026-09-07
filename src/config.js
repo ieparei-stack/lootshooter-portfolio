@@ -1,8 +1,8 @@
 // 조절 수치 모음. 단계가 진행되면서 이동·감도·무기 관련 값이 여기에 추가된다.
 export const config = {
   render: {
-    fov: 90,                    // 지향 FOV (SPEC 확정)
-    adsFov: 59,                 // 정조준 FOV — TBD #2. 초기값은 시뮬레이터 1.77배 환산값, 사용자가 슬라이더로 확정
+    fov: 75,                    // 지향 FOV. SPEC 확정 90 → 75 (T35, 사용자 설계 2026-09-07 — 같은 각도가 90에서는 25% 작아 보여 반동 체감이 덜 산다. 단계 종료 시 SPEC 갱신)
+    adsFov: 59,                 // 정조준 FOV 기본값 — 무기에 ads.fov가 없을 때만 쓴다 (T35부터 무기별 필드. TBD #2 종결)
     near: 0.1,
     far: 500,
     backgroundColor: 0x9fc3e0,  // 하늘색

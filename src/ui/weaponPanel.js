@@ -8,7 +8,8 @@ import { FIELDS, fieldVisible, applyTuning, curveMulOf, diffPaths, toJson, saveT
 //   - 반동 묶음 (T31): curve 무기는 기본값 6개(v0·vG·vMax·h0·hMax·수평 방식) + 수직·수평 배율(curveMul, 파일값 기준. 기본값을 개별로 바꿔
 //     파일값×배율이 아니면 '혼합' 표시). array 무기(CS형)는 예외 — 배율(arrMul)만. 고급에는 기본값이 더 이상 없다.
 //   - 상한: T32에서 핸들링 ×3 · 스펙 ×10 (정조준 FOV는 카메라 한계로 170). settingsPanel의 같은 전역 슬라이더와 범위를 맞춘다.
-//   - 전역 필드(정조준 FOV, 웅크리기·질주 배율)는 config를 직접 읽고 쓰며 tuning.v1에 저장하지 않는다. 점 기준은 시작 시 값.
+//   - 전역 필드(웅크리기·질주 배율)는 config를 직접 읽고 쓰며 tuning.v1에 저장하지 않는다. 점 기준은 시작 시 값.
+//   - T35: 정조준 FOV는 전역이 아니라 무기별 ads.fov. 반동 묶음에 시각 추적(viewTracking), 이동 묶음에 웅크리기 퍼짐 배율(crouchSpreadMul).
 //   - 행: ● 변경 표시 · 숫자 입력 · 슬라이더 · 더블클릭 = 파일 값 복원. 탭 옆 변경 개수 배지.
 //   - localStorage ui.weaponPanel.v1 = { tab, advOpen }. 선택 무기는 기억하지 않고 항상 1번(CS형)에서 시작 (사용자 지시 2026-09-06). 튜닝 값은 tuning.v1 그대로 (tuningPanel.js).
 export const UI_KEY = 'ui.weaponPanel.v1';
@@ -17,7 +18,7 @@ const byPath = Object.fromEntries(FIELDS.map((f) => [f.path, f]));
 const F = (path, label) => ({ ...byPath[path], ...(label ? { label } : {}) });
 const globalField = (key, label, get, set, min, max, step, fmt) => ({ path: 'config.' + key, label, global: true, get, set, min, max, step, fmt });
 
-const R = config.render, P = config.player;
+const P = config.player;
 export const TABS = [
   { id: 'spec', label: '스펙', groups: [{ title: null, fields: [
     F('damage', '발당 피해'), { path: 'headshotMul', label: '헤드샷 배율', min: 1, max: 30, step: 0.1 },
@@ -31,14 +32,15 @@ export const TABS = [
       { path: 'curveMul.h', label: '수평 배율 (파일값 기준)', min: 0, max: 9, step: 0.05, when: 'curve', virtual: true },
       { path: 'arrMul.v', label: '수직 배율', min: 0, max: 9, step: 0.05, when: 'array', virtual: true },
       { path: 'arrMul.h', label: '수평 배율', min: 0, max: 9, step: 0.05, when: 'array', virtual: true },
+      F('viewTracking', '시각 추적 (카메라가 따라가는 비율)'),
       F('recovery.delay', '복귀 지연 (ms)'), F('recovery.speed', '복귀 속도 (°/s)'),
     ] },
     { title: '퍼짐', fields: [F('spread.base', 'base (°)'), F('spread.bloom', 'bloom (°/발)'), F('spread.decay', 'decay (°/s)'), F('spread.max', 'max (°)')] },
     { title: '정조준', fields: [
-      globalField('render.adsFov', '정조준 FOV (°)', () => R.adsFov, (v) => { R.adsFov = v; }, 30, 170, 1, (v) => String(v)),
+      F('ads.fov', '정조준 FOV (°)'),
       F('ads.time', '조준 시간 (ms)'), F('ads.spread', '퍼짐 배율'), F('ads.recoil', '반동 배율'),
     ] },
-    { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)')] },
+    { title: '이동', fields: [F('moveSpreadMul', '이동 퍼짐 배율 (걷기 최고속)'), F('crouchSpreadMul', '웅크리기 퍼짐 배율')] },
     { title: '고급', adv: true, fields: [
       F('randV'), F('randH'),
       { ...byPath['arrMul.v'], label: '고정 배열 스케일 수직' }, { ...byPath['arrMul.h'], label: '고정 배열 스케일 수평' },
