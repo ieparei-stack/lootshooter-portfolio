@@ -66,7 +66,7 @@ export function createWaveZone(scene, { player, monsters, waves, triggerZ, endZ 
     if (state.phase === 'wave') return boss ? `보스 · 남은 몬스터 ${state.alive}` : `${label} · 웨이브 ${state.index + 1}/${n} · 남은 몬스터 ${state.alive}`;
     return null;
   }
-  function clearText() { return boss ? '보스 처치 — 데모 완료' : `${label} 클리어 — 앞으로 가세요`; }
+  function clearText() { return boss ? '보스 처치 — 데모 완료' : `${label} 클리어 — 초록 선을 따라 가세요`; }
   const active = () => state.phase === 'countdown' || state.phase === 'wave' || state.phase === 'hold';
 
   // T24: 사망 → 현재 웨이브 몬스터 전부 제거하고 멈춘다. 교전 중이 아니면 무시

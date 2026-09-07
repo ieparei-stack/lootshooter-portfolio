@@ -23,10 +23,11 @@ const platform = (minX, maxX, minZ, maxZ, height = 2) => ({ minX, maxX, minZ, ma
 // 방 사양. zNear = 앞 방 뒷벽 바깥면(앞 방 zFar − T). prevCover = 앞 방 뒷벽이 덮는 반폭(앞 방 halfWidth + T) — 이보다 넓으면 앞벽 바깥 조각을 채운다
 // T33 (사용자 결정 2026-09-07): 구역 1 유지 / 구역 2 갈림길(폭 20 × 깊이 40, 가운데 긴 벽) / 구역 3 중앙 기둥 요새(속 찬 기둥 + 낮은 상자 고리) / 단·문·웨이브 그대로.
 // 근접형은 경로 탐색 없이 직진 + 미끄러짐(monsters.js)이라 오목한 모서리에 낀다 → 엄폐물끼리·옆벽과 틈 2.5 m 이상, 엄폐물은 서로 붙이지 않는다.
+// T34 (사용자 결정 2026-09-06 C): 구역 1~3 단을 zFar+3 ~ zFar+9 에 두어 단 뒤 통로를 3 m로 (전엔 1 m). 유도선·빛기둥은 guide.js. 보스 방은 그대로.
 export const ROOMS = [
   {
     id: 1, label: '구역 1', halfWidth: 15, zNear: -55.5, zFar: -86, doorBack: true, prevCover: RANGE.halfWidth + RANGE.wallThickness,
-    platform: platform(-7, 7, -85, -79),
+    platform: platform(-7, 7, -83, -77),
     cover: [
       lowBox(-4, -62), lowBox(4, -62), lowBox(0, -70, 3), lowBox(-9, -70), lowBox(9, -70),
       highWall(-7, -66), highWall(7, -66), highWall(-3, -75, 2.5), highWall(3, -75, 2.5),
@@ -34,7 +35,7 @@ export const ROOMS = [
   },
   {
     id: 2, label: '구역 2', halfWidth: 10, zNear: -86.5, zFar: -127, doorBack: true, prevCover: 15.5,   // 갈림길 — 좁고 길게(20 × 40)
-    platform: platform(-7, 7, -126, -120),
+    platform: platform(-7, 7, -124, -118),
     cover: [
       highWallZ(0, -103, 22),                       // 가운데 벽 z −114 ~ −92: 입구 5.5 m 앞부터 스폰 줄(−117) 3 m 앞까지
       highWall(-6, -100), highWall(6, -108),           // 통로마다 엇갈린 모퉁이 (옆벽까지 2.5, 가운데 벽까지 4.25)
@@ -43,11 +44,11 @@ export const ROOMS = [
   },
   {
     id: 3, label: '구역 3', halfWidth: 15, zNear: -127.5, zFar: -158, doorBack: true, prevCover: 10.5,   // 중앙 기둥 요새 (30 × 30)
-    platform: platform(-7, 7, -157, -151),
+    platform: platform(-7, 7, -155, -149),
     cover: [
       pillar(0, -139, 6, 6),                        // 기둥 x −3~3, z −142~−136, 높이 3 — 붙어 있으면 단 위 원거리형 시야가 끊긴다
-      lowBox(0, -131.5, 3), lowBox(-7.5, -139, 1.2, 3), lowBox(7.5, -139, 1.2, 3),   // 고리 앞·좌·우 (뒤 가운데는 근접형 스폰 줄 −148 때문에 비움)
-      lowBox(-5.5, -132.5), lowBox(5.5, -132.5), lowBox(-5.5, -145.5), lowBox(5.5, -145.5),   // 고리 대각
+      lowBox(0, -131.5, 3), lowBox(-7.5, -139, 1.2, 3), lowBox(7.5, -139, 1.2, 3),   // 고리 앞·좌·우 (뒤는 근접형 스폰 줄 −146과 유도선 때문에 비움 — T34)
+      lowBox(-5.5, -132.5), lowBox(5.5, -132.5),      // 고리 앞 대각
       lowBox(-11, -134), lowBox(11, -134),          // 입구 쪽 바깥 — 들어서서 처음 숨을 곳
     ],
   },
