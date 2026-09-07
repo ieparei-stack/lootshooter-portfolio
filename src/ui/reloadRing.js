@@ -22,18 +22,19 @@ export function createReloadRing() {
   const arc = document.createElementNS(NS, 'circle');    // 흰 진행 호
   arc.setAttribute('fill', 'none'); arc.setAttribute('stroke', '#fff'); arc.setAttribute('stroke-width', WIDTH); arc.setAttribute('stroke-linecap', 'butt');
   el.appendChild(back); el.appendChild(arc);
-  el.hidden = true;
+  // 주의: SVG 요소는 HTML의 hidden 속성이 듣지 않는다(SVGElement에 hidden 없음) → display로 켜고 끈다
+  el.style.display = 'none';
   document.body.appendChild(el);
 
-  const state = { progress: null, radius: -1 };
+  const state = { progress: null, radius: -1, visible: false };
   let lastR = -1, lastOff = -1, circ = 0;
 
   // progress: 0~1 또는 null(재장전 아님 → 숨김). ringRadius: 조준원 반지름(px)
   function set(progress, ringRadius) {
     const p = typeof progress === 'number' && progress >= 0 ? Math.min(1, progress) : null;
     state.progress = p;
-    if (p === null) { if (!el.hidden) el.hidden = true; return; }
-    if (el.hidden) el.hidden = false;
+    if (p === null) { if (state.visible) { state.visible = false; el.style.display = 'none'; } return; }
+    if (!state.visible) { state.visible = true; el.style.display = ''; }
     const r = Math.max(4, ringRadius) + GAP;
     if (Math.abs(r - lastR) >= 0.1) {
       lastR = r; state.radius = r; circ = 2 * Math.PI * r;
