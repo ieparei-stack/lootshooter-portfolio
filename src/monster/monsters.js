@@ -4,6 +4,7 @@ import { computeDamage } from '../weapon/damage.js';
 import { resolveCircleVsBlocks } from '../player/collision.js';
 import { raycastWorld } from '../weapon/raycast.js';
 import { emit } from '../core/events.js';
+import { textTexture } from '../stage/range.js';   // T46 정예 표지
 
 // 몬스터 (T22 2종 + T26 보스). 데이터는 코드에 둔다 (무기만 파일). 수치는 config.monster — 슬라이더가 직접 바꾼다.
 //   melee  근접형: 인지하면 달려와 reach 안에서 windup 동안 몸을 내밀고 때린다. cooldown 뒤 반복.
@@ -25,6 +26,13 @@ const SHAPE = {
   boss:   { body: { w: 1.6, h: 3.0, d: 1.2 }, head: 0.6, color: { body: 0x7a3fb0, head: 0x4e2575 }, muzzles: [-0.8, 0.8], barScale: 2.5 },
 };
 const COLOR = { flash: 0xffe08a, bar: 0x3ddc84, barBg: 0x202020, laser: 0xff3030, laserFlash: 0xffffff };
+// T46 정예 티어 외형 (Claude 결정): 크기 ×1.25, 색 ×0.6 (진하게), HP 바 위 '정예' 표지. HP는 config.monster[kind].eliteHp. 속도·피해·행동은 일반과 같다
+const ELITE = { scale: 1.25, colorMul: 0.6, label: '정예', labelBg: '#5a1010' };
+const darken = (hex, k) => ((Math.round(((hex >> 16) & 255) * k) << 16) | (Math.round(((hex >> 8) & 255) * k) << 8) | Math.round((hex & 255) * k));
+function eliteShape(S) {
+  const k = ELITE.scale;
+  return { body: { w: S.body.w * k, h: S.body.h * k, d: S.body.d * k }, head: S.head * k, color: { body: darken(S.color.body, ELITE.colorMul), head: darken(S.color.head, ELITE.colorMul) }, muzzles: S.muzzles.map((o) => o * k), barScale: S.barScale * k };
+}
 const FLASH_TIME = 0.1;        // 피격 플래시 (s)
 const FALL_TIME = 0.25;        // 쓰러지는 애니메이션 (s)
 const REMOVE_TIME = 1.0;       // 쓰러진 뒤 사라지기까지 (s)
@@ -45,11 +53,12 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
 
   function eye() { return { x: player.state.x, y: player.state.eyeHeight, z: player.state.z }; }
 
-  // T38: hpMul = 구역 HP 배율 (waves.js 정의에 실려 온다). 슬라이더의 기본 HP 위에 곱한다
-  function spawn(kind, x, z, { floorY = 0, bounds = null, summoned = false, hpMul = 1 } = {}) {
-    const S = SHAPE[kind];
+  // T46: elite = 정예 티어 (waves.js 정의의 elite: true로 실려 온다). HP는 eliteHp, 외형은 eliteShape. 보스에는 정예 없음
+  function spawn(kind, x, z, { floorY = 0, bounds = null, summoned = false, elite = false } = {}) {
+    elite = elite && kind !== 'boss';
+    const S = elite ? eliteShape(SHAPE[kind]) : SHAPE[kind];
     const C = config.monster[kind];
-    const hp = Math.round(C.hp * hpMul);
+    const hp = Math.round(elite ? (C.eliteHp ?? C.hp) : C.hp);
     const group = new THREE.Group();            // 위치·회전(플레이어를 향함)·쓰러짐
     const rig = new THREE.Group();              // 근접 공격 시 앞으로 내미는 몸
     group.add(rig);
@@ -71,6 +80,14 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     bar.scale.setScalar(S.barScale);
     bar.visible = false;
     group.add(bar);
+    // T46 정예 표지 — HP 바 위, 항상 보임 (바는 맞아야 보이므로 따로). 카메라를 향한다
+    let tag = null;
+    if (elite) {
+      const tex = textTexture(ELITE.label, { w: 256, h: 128, bg: ELITE.labelBg });
+      tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), tex ? new THREE.MeshBasicMaterial({ map: tex, transparent: true }) : new THREE.MeshBasicMaterial({ color: 0x5a1010 }));
+      tag.position.y = bar.position.y + 0.12 * S.barScale + 0.2;
+      group.add(tag);
+    }
 
     // 조준선(원거리·보스) — 월드 좌표라 group이 아닌 scene에 붙인다. 길이 1의 원기둥(y축)을 scale·quaternion으로 맞춘다. 총구마다 하나
     const lasers = [];
@@ -91,7 +108,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     scene.add(group);
 
     const m = {
-      id: `${kind}-${nextId++}`, kind, group, rig, bar, fill, lasers,
+      id: `${kind}-${nextId++}`, kind, group, rig, bar, fill, lasers, tag, elite,
       pos: { x, z }, yaw: 0, floorY, bounds, summoned,
       hp, hpMax: hp, alive: true, dead: false,
       state: 'idle',       // idle | chase | attack(근접 준비) | cooldown | dead
@@ -228,7 +245,7 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
     const z = m.bounds ? m.bounds.maxZ + 2 : m.pos.z + 3;
     for (let i = 0; i < n; i++) {
       const x = m.pos.x + (i - (n - 1) / 2) * 3;
-      spawn('melee', x, z, { summoned: true, hpMul: C.summonHpMul ?? 1 }).state = 'chase';
+      spawn('melee', x, z, { summoned: true }).state = 'chase';   // 소환수는 일반 티어 (T46)
     }
   }
 
@@ -367,6 +384,10 @@ export function createMonsters(scene, { blocks = [], player, tracers = null, onP
         m.fill.scale.x = Math.max(0.001, ratio);
         m.fill.position.x = -(1 - ratio) * 0.29;
         if (camera) { m.group.updateMatrixWorld(); m.bar.lookAt(camera.position); }
+      }
+      if (m.tag) {
+        m.tag.visible = !m.dead;
+        if (m.tag.visible && camera) { if (!m.bar.visible) m.group.updateMatrixWorld(); m.tag.lookAt(camera.position); }
       }
     }
   }

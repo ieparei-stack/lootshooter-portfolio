@@ -251,6 +251,8 @@ const M = config.monster;
 const mg = settingsPanel.addGroup('몬스터 (T22)', { onToggle: layoutPanels });
 mg.addSlider({ label: '근접형 HP (리셋 후 적용)', min: 500, max: 6000, step: 100, get: () => M.melee.hp, set: (v) => { M.melee.hp = v; } });
 mg.addSlider({ label: '원거리형 HP (리셋 후 적용)', min: 500, max: 6000, step: 100, get: () => M.ranged.hp, set: (v) => { M.ranged.hp = v; } });
+mg.addSlider({ label: '정예 근접 HP (리셋 후 적용)', min: 500, max: 9000, step: 100, get: () => M.melee.eliteHp, set: (v) => { M.melee.eliteHp = v; } });   // T46
+mg.addSlider({ label: '정예 원거리 HP (리셋 후 적용)', min: 500, max: 9000, step: 100, get: () => M.ranged.eliteHp, set: (v) => { M.ranged.eliteHp = v; } });
 mg.addSlider({ label: '근접형 속도 (m/s)', min: 2, max: 10, step: 0.5, get: () => M.melee.speed, set: (v) => { M.melee.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '원거리형 속도 (m/s)', min: 2, max: 8, step: 0.5, get: () => M.ranged.speed, set: (v) => { M.ranged.speed = v; }, format: (v) => v.toFixed(1) });
 mg.addSlider({ label: '조준선 딜레이 (s)', min: 0.2, max: 2.0, step: 0.1, get: () => M.ranged.aimDelay, set: (v) => { M.ranged.aimDelay = v; }, format: (v) => v.toFixed(1) });

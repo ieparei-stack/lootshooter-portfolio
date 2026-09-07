@@ -52,10 +52,10 @@ export const config = {
   // 나머지는 Claude 임시 수치 — 데모 안정화까지 자유 조정 (CLAUDE.md 3-2).
   monster: {
     aggroRange: 30,             // 인지 거리 (m). 시야가 있어야 함. 맞으면 즉시 인지
-    zoneHpMul: [1.0, 1.1, 1.2], // T38 구역 1·2·3 몬스터 HP 배율 (근접·원거리 모두). 사용자 설계 2026-09-07 — 슬라이더의 기본 HP 위에 곱한다
     radius: 0.4,                // 충돌 반지름 (m)
     melee: {
-      hp: 3000,                 // 사용자 결정 (레버)
+      hp: 2400,                 // 일반 티어 (T46 사용자 확정 2026-09-07, 3000→). 레버
+      eliteHp: 3600,            // 정예 티어 (T46). 속도·피해·행동은 일반과 같고 외형만 구분
       speed: 7,                 // m/s, 사용자 결정 (레버). 걷기 5.5보다 빠름
       damage: 15,
       reach: 1.8,               // 공격 시작 거리 (m, 중심 간)
@@ -64,7 +64,8 @@ export const config = {
       cooldown: 1.2,            // 공격 후 다음 공격까지 (s)
     },
     ranged: {
-      hp: 2000,                 // 사용자 결정 (레버)
+      hp: 1600,                 // 일반 티어 (T46 사용자 확정 2026-09-07, 2000→). 레버
+      eliteHp: 2400,            // 정예 티어 (T46)
       speed: 4,
       damage: 10,
       aimDelay: 0.8,            // 조준선이 보인 뒤 발사까지 (s). 사용자: 레버로 조절
@@ -85,8 +86,7 @@ export const config = {
       summonHpRatio: 0.5,       // 이 비율 이하부터 소환
       summonCount: 2,           // 한 번에
       summonInterval: 10,       // 소환 간격 (s)
-      summonMax: 4,             // 살아있는 소환수 상한
-      summonHpMul: 1.0,         // T38 소환 근접형 HP 배율 (사용자 결정 2026-09-07: 기본 그대로)
+      summonMax: 4,             // 살아있는 소환수 상한. 소환수는 일반 티어 (T46)
     },
   },
   // 4단계 트리거 존 + 웨이브 (T23). 웨이브 구성 자체는 stage/waves.js 코드에 둔다.

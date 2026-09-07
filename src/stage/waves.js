@@ -15,13 +15,13 @@ import { RANGE, floorLine } from './range.js';
 const COLOR = { zone: 0xff4040 };
 
 // 방 웨이브 3개 생성. extra = 종류당 추가 마릿수. 좌표는 방 안에서 균등 배치 (Claude 임시)
-// T38: hpMul = 구역 HP 배율 (config.monster.zoneHpMul) — 근접·원거리 정의 모두에 실어 monsters.spawn이 곱한다
-export function makeWaves(room, extra = 0, hpMul = 1) {
+// T46: 구역 HP 배율 제거 — 구역 난이도는 정예 비율(T47)이 맡는다. 정의에 elite: true를 실으면 monsters.spawn이 정예 티어로 띄운다
+export function makeWaves(room, extra = 0) {
   const p = room.platform;
   const onPlatform = { floorY: p.height, bounds: p.bounds };
   const spread = (n, lo, hi) => Array.from({ length: n }, (_, i) => (n === 1 ? (lo + hi) / 2 : lo + (hi - lo) * i / (n - 1)));
-  const melee = (n) => spread(n, -6, 6).map((x) => ({ kind: 'melee', x, z: room.floorZ, hpMul }));
-  const ranged = (n) => spread(n, p.minX + 1.5, p.maxX - 1.5).map((x) => ({ kind: 'ranged', x, z: p.minZ + 2, hpMul, ...onPlatform }));
+  const melee = (n) => spread(n, -6, 6).map((x) => ({ kind: 'melee', x, z: room.floorZ }));
+  const ranged = (n) => spread(n, p.minX + 1.5, p.maxX - 1.5).map((x) => ({ kind: 'ranged', x, z: p.minZ + 2, ...onPlatform }));
   const n = 2 + extra;
   return [melee(n), ranged(n), [...melee(n), ...ranged(n)]];
 }

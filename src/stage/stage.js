@@ -48,7 +48,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
 
   const zones = rooms.map((room, i) => createWaveZone(scene, {
     player, monsters,
-    waves: room.boss ? makeBossWaves(room) : makeWaves(room, i, config.monster.zoneHpMul[i] ?? 1),   // 구역 1: +0, 2: +1, 3: +2. HP 배율 1.0/1.1/1.2 (T38)
+    waves: room.boss ? makeBossWaves(room) : makeWaves(room, i),   // 구역 1: +0, 2: +1, 3: +2. 구역 HP 배율은 T46에서 제거
     triggerZ: room.triggerZ, endZ: room.endZ, label: room.label, boss: room.boss,
     onClear: () => {
       const finish = () => {
