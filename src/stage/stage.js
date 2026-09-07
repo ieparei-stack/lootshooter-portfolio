@@ -38,7 +38,8 @@ function createHud() {
   return { el, boss, bossFill };
 }
 
-export function createStage(scene, { player, monsters, blocks, prompt = null, onPick = null }) {
+// T28: 보스 방을 클리어하면 onBossClear() — main.js가 타이머를 멈추고 2초 뒤 결과 화면을 연다.
+export function createStage(scene, { player, monsters, blocks, prompt = null, onPick = null, onBossClear = null }) {
   const rooms = ROOMS.map((spec) => buildRoom(scene, blocks, spec));
   if (scene) floorText(scene, '전투 구역 ▼', 0, RANGE.zFar + 2, 4);   // 사격장 쪽 문 앞
   const guides = rooms.map((room) => (room.boss || !scene ? null : createGuide(scene, room)));
@@ -55,6 +56,7 @@ export function createStage(scene, { player, monsters, blocks, prompt = null, on
         openDoor(room, scene, blocks); state.lastCleared = i;
         if (guides[i]) guides[i].show();
         if (prompt) { if (room.boss) prompt.hold(zones[i].clearText()); else prompt.show(zones[i].clearText(), 3); }
+        if (room.boss && onBossClear) onBossClear();
       };
       if (!room.boss && onPick) onPick(i, finish);
       else finish();

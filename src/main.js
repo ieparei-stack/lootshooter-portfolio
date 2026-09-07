@@ -37,6 +37,8 @@ import { createSound } from './audio/sound.js';
 import { createViewModel } from './weapon/viewModel.js';
 import { createGrowth } from './growth/growth.js';
 import { createGrowthPick } from './ui/growthPick.js';
+import { createRunStats } from './stats/runStats.js';
+import { createResultScreen } from './ui/resultScreen.js';
 import { emit } from './core/events.js';
 import weaponsJson from '../data/weapons.json';
 
@@ -119,29 +121,42 @@ const monsters = createMonsters(scene, {
 let pauseMenu = null, crosshair = null, weaponCard = null;   // 아래에서 만든다
 let pickDone = null;           // 확정 시 부를 stage의 finish (문 열림·안내·클리어 음)
 let pendingClearText = null;   // 확정 뒤 포인터가 풀린 채 붙잡아 둔 클리어 문구 — 재잠금 시 3초 프롬프트로 바꾼다
+// T39/T28 공용: 전면 오버레이(강화 선택·결과 화면)가 열리면 포인터 해제·일시정지 메뉴 차단·조준원/프롬프트/카드 숨김. 닫히면 되돌린다
+function setOverlay(open) {
+  if (open && mouseLook.isLocked()) document.exitPointerLock();
+  if (pauseMenu) pauseMenu.setBlocked(open);
+  if (crosshair) crosshair.ring.hidden = open;
+  prompt.el.style.visibility = open ? 'hidden' : '';
+  if (weaponCard) weaponCard.root.style.visibility = open ? 'hidden' : '';
+}
 const growthPick = createGrowthPick({
   weapons, growth,
-  onOpen: () => {
-    if (mouseLook.isLocked()) document.exitPointerLock();
-    if (pauseMenu) pauseMenu.setBlocked(true);
-    if (crosshair) crosshair.ring.hidden = true;
-    prompt.el.style.visibility = 'hidden';
-    if (weaponCard) weaponCard.root.style.visibility = 'hidden';
-  },
+  onOpen: () => setOverlay(true),
   onClose: (applied, zone) => {
-    if (pauseMenu) pauseMenu.setBlocked(false);
-    if (crosshair) crosshair.ring.hidden = false;
-    prompt.el.style.visibility = '';
-    if (weaponCard) weaponCard.root.style.visibility = '';
+    setOverlay(false);
     const finish = pickDone; pickDone = null;
     if (!applied || !finish) return;   // 리셋으로 닫힘 — 문은 안 연다
     finish();   // 문 열림 + T34 안내 + 클리어 프롬프트(3초) + 클리어 음. 성장 탭은 열릴 때 다시 그리므로(setVisible) Lv가 반영된다
     if (!mouseLook.isLocked()) { pendingClearText = stage.zones[zone].clearText(); prompt.hold(pendingClearText + '  (클릭하여 계속)'); }
   },
 });
+// T28 결과 화면 — 한 판 통계(runStats)는 구역이 처음 발동할 때 시작, 보스 처치(stage.onBossClear)에서 멈춘다.
+//      RESULT_DELAY_MS 뒤(게임 시각) 루프가 resultScreen.open → 정지. '처음부터 다시 시작'은 아래 restartRun.
+const RESULT_DELAY_MS = 2000;
+const runStats = createRunStats(weapons);
+let gameNow = 0;       // 루프의 게임 시각(정지 시간 제외) — onBossClear가 읽는다
+let resultAt = -1;     // 결과 화면을 열 게임 시각. −1 = 예정 없음
+let restartRun = null; // 아래에서 정의 (loadout·kits가 필요)
+const resultScreen = createResultScreen({
+  weapons, growth,
+  onOpen: () => setOverlay(true),
+  onClose: () => setOverlay(false),
+  onRestart: () => { if (restartRun) restartRun(); },
+});
 stage = createStage(scene, {
   player, monsters, blocks, prompt,
   onPick: (i, finish) => { pickDone = finish; growthPick.open(i); },
+  onBossClear: () => { runStats.finish(gameNow); resultAt = gameNow + RESULT_DELAY_MS; },
 });   // 구역 1~3 + 보스 방, 문 열림
 document.addEventListener('pointerlockchange', () => {
   if (mouseLook.isLocked() && pendingClearText !== null) { prompt.show(pendingClearText, 3); pendingClearText = null; }
@@ -161,6 +176,12 @@ function onFire({ origin, dir, yaw, pitch, hit, enhanced = false }) {   // enhan
     const onTarget = !!(hit && hit.collider && hit.collider.system === targets && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0);
     accuracy.record(w.id, w.name, { hit: onTarget, head: onTarget && hit.part === 'head' });
     refreshAccuracy();
+  }
+  // T28 한 판 통계 — 타이머가 도는 동안 쏜 모든 발. 명중 = 몬스터 몸·머리(피해 > 0), 피해 = 실제 입힌 값(배율 포함)
+  if (runStats.state.phase === 'running') {
+    const w = loadout.current().weapon;
+    const onMonster = !!(hit && hit.collider && hit.collider.system === monsters && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0);
+    runStats.record(w.id, w.name, { hit: onMonster, head: onMonster && hit.part === 'head', damage: onMonster ? hit.result.damage : 0 });
   }
   if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
     hitmarker.show(hit.part, crosshair.radius());   // 조준원 바깥에 붙는 마커
@@ -248,9 +269,24 @@ const vg = settingsPanel.addGroup('총기 뷰모델', { open: true, onToggle: la
 const vmLabel = () => `뷰모델: ${viewModel.state.enabled ? '켜짐' : '꺼짐'}`;
 const vmBtn = vg.addButton(vmLabel(), () => { viewModel.setEnabled(!viewModel.state.enabled); vmBtn.textContent = vmLabel(); });
 // T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
-const resetZone = () => { growthPick.close(false); stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; accuracy.reset(); refreshAccuracy(); };
+// T28: 리셋은 결과 화면·통계도 비운다 (강화는 그대로 — T40 제외 결정)
+const resetZone = () => { growthPick.close(false); resultScreen.close(); resultAt = -1; runStats.reset(); stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; accuracy.reset(); refreshAccuracy(); };
 settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
+// T28 처음부터 다시 시작 (사용자 결정 2026-09-07): 강화 Lv 0 · 사격장 시작 위치(0,0) · 스테이지·HP·통계 리셋 · 1번 무기(CS형) · 탄창 가득. 튜닝(무기 세팅)은 유지
+restartRun = () => {
+  resetZone();          // 결과 화면 닫힘 + 스테이지·HP·받은 공격·명중률·통계
+  growth.reset();       // Lv 0 → onRefresh가 kit 반동 재컴파일
+  for (const k of loadout.kits) {   // 탄창 가득 · 버프 0 · 반동 누적·bloom·정조준 0
+    k.shooter.cancelReload(); k.shooter.state.mag = k.weapon.mag; k.shooter.state.enhancedCount = 0;
+    k.shooter.state.buffs.damageUntil = 0; k.shooter.state.buffs.freeAmmoUntil = 0;
+    k.recoil.reset(); k.spread.reset(); k.ads.reset();
+  }
+  loadout.select(0);
+  player.state.x = PLAYER_START.x; player.state.z = PLAYER_START.z; player.state.yaw = 0; player.state.pitch = 0;
+  movement.state.vx = movement.state.vz = movement.state.speed = 0; movement.state.crouched = false;
+  prompt.hold('클릭하여 시작');   // 포인터가 풀려 있다 — 잠기면 아래 리스너가 지운다
+};
 layoutPanels();
 window.addEventListener('resize', layoutPanels);
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(layoutPanels).observe(weaponInfo.root);   // 슬롯 높이가 바뀌면(내용 갱신) 패널 bottom 재계산
@@ -269,7 +305,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, growthPick, events: { emit } };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, growth, growthPick, runStats, resultScreen, restartRun, events: { emit } };
 }
 
 // T39: 강화 선택 화면 동안 게임 정지. 게임 시각 now = 실시간 − 정지 누적. shooter·recoil의 재장전·버프·패턴 리셋 타이머가 전부 이 now를 받으므로
@@ -277,13 +313,17 @@ if (import.meta.env.DEV) {
 let pausedMs = 0, pauseStart = -1;
 startLoop((dt) => {
   const real = performance.now();
-  const paused = growthPick.state.open;
+  // T28: 보스 처치 + 2초(게임 시각)가 되면 결과 화면 — 정지 판정 앞에서 열어 이 프레임부터 멈춘다
+  if (resultAt >= 0 && !growthPick.state.open && real - pausedMs >= resultAt) { resultAt = -1; resultScreen.open(runStats.summary()); }
+  const paused = growthPick.state.open || resultScreen.state.open;
   if (paused) { if (pauseStart < 0) pauseStart = real; }
   else if (pauseStart >= 0) { pausedMs += real - pauseStart; pauseStart = -1; }
   const now = (paused ? pauseStart : real) - pausedMs;
+  gameNow = now;
   const kit = loadout.current();
   const { weapon, ads, recoil, spread, shooter } = kit;
   if (!paused) {
+    if (runStats.state.phase === 'idle' && stage.state.current >= 0) runStats.start(now);   // T28: 구역이 처음 발동한 순간 = 타이머 시작 (정상 흐름은 구역 1)
     patternOverlay.beforeShoot(recoil);   // 첫 발 직전 조준 방향을 궤적 원점으로 (shooter.update보다 먼저)
     health.update(dt);              // 사망 타이머·눈높이·부활 (movement보다 먼저 — 죽으면 이동을 건너뛴다)
     if (health.state.dead) { movement.state.vx = movement.state.vz = movement.state.speed = 0; }
