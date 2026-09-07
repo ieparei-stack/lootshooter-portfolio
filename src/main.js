@@ -3,7 +3,7 @@ import { config } from './config.js';
 import { createRenderer } from './core/renderer.js';
 import { startLoop } from './core/loop.js';
 import { createMouseLook, createKeyboard, createMouseButtons, createMouseWheel } from './core/input.js';
-import { buildRange, PLAYER_START } from './stage/range.js';
+import { buildRange, PLAYER_START, RANGE } from './stage/range.js';
 import { createStage } from './stage/stage.js';
 import { createTargets } from './stage/targets.js';
 import { createPlayerCamera } from './player/camera.js';
@@ -25,6 +25,7 @@ import { createAds } from './weapon/ads.js';
 import { createImpactMarks } from './weapon/impactMarks.js';
 import { createTracers, muzzlePosition } from './weapon/tracers.js';
 import { createShooter } from './weapon/shooter.js';
+import { createAccuracy } from './weapon/accuracy.js';
 import { createLoadout } from './weapon/loadout.js';
 import { createMonsters } from './monster/monsters.js';
 import { createHealth } from './player/health.js';
@@ -102,8 +103,19 @@ stage = createStage(scene, { player, monsters, blocks, prompt });   // 구역 1~
 // 사망 중에는 사격·정조준 입력을 막는다 (버튼 상태를 감싼다)
 const gunButtons = { isDown: (b) => !health.state.dead && mouseButtons.isDown(b) };
 
+// T37 명중률 카운터 — 사격장 안(백스톱 앞, z > RANGE.zFar)에서 쏜 발만 세고, 인간형 표적 명중만 명중으로 (과녁판·벽·몬스터 제외)
+const accuracy = createAccuracy();
+let accuracyLines = [];   // 플레이어 세팅 그룹의 줄 (아래에서 만든다)
+function refreshAccuracy() { accuracy.summary(weapons).forEach((t, i) => { if (accuracyLines[i]) accuracyLines[i].textContent = t; }); }
+
 function onFire({ origin, dir, yaw, pitch, hit }) {
   tracers.add(muzzlePosition(origin, yaw, pitch), hit ? hit.point : null, dir);
+  if (player.state.z > RANGE.zFar) {
+    const w = loadout.current().weapon;
+    const onTarget = !!(hit && hit.collider && hit.collider.system === targets && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0);
+    accuracy.record(w.id, w.name, { hit: onTarget, head: onTarget && hit.part === 'head' });
+    refreshAccuracy();
+  }
   if (hit && (hit.part === 'body' || hit.part === 'head') && hit.result && hit.result.damage > 0) {
     hitmarker.show(hit.part, crosshair.radius());   // 조준원 바깥에 붙는 마커
     emit('hit', { part: hit.part });
@@ -149,8 +161,9 @@ const patternOverlay = createPatternOverlay(camera, player);   // T19 이론 반
 createMouseWheel(mouseLook, (step) => (step > 0 ? loadout.next() : loadout.prev()));
 keyboard.onPress('KeyR', () => { const k = loadout.current(); k.shooter.startReload(k.shooter.state.now); });
 // T18: 탄착군 지우기 — 잠금 중 X, 해제 중엔 왼쪽 위 패널 버튼
-keyboard.onPress('KeyX', () => marks.clear());
-settingsPanel.addButton('탄착군 지우기 (X)', () => marks.clear());
+const clearMarks = () => { marks.clear(); accuracy.reset(); refreshAccuracy(); };   // T37: 탄착군과 명중률을 같이 비운다
+keyboard.onPress('KeyX', clearMarks);
+settingsPanel.addButton('탄착군·명중률 지우기 (X)', clearMarks);
 // T19: 이론 궤적 켜기/끄기 — 잠금 중 P, 해제 중엔 패널 버튼 (사용자 지시 2026-09-04, SPEC '항상 켜짐' 변경)
 const overlayLabel = () => `이론 궤적: ${patternOverlay.state.enabled ? '켜짐' : '꺼짐'} (P)`;
 const overlayBtn = settingsPanel.addButton(overlayLabel(), () => { patternOverlay.toggle(); overlayBtn.textContent = overlayLabel(); });
@@ -159,6 +172,10 @@ keyboard.onPress('KeyP', () => { patternOverlay.toggle(); overlayBtn.textContent
 // T22: 몬스터 레버 (접이식 그룹) + 리셋. 설정 패널이 길어지면 튜닝 패널을 그 아래로 내린다
 // T26.2: 튜닝(무기 세팅) 패널은 우측 무기 슬롯 바로 위까지. 설정 패널은 좌측 고정이라 서로 무관
 const layoutPanels = () => { weaponPanel.root.style.bottom = (weaponInfo.root.getBoundingClientRect().height + 24) + 'px'; };
+// T37: 명중률 그룹 (기본 펼침) — 무기별 한 줄 + 초기화
+const ag = settingsPanel.addGroup('명중률 (사격장)', { open: true, onToggle: layoutPanels });
+accuracyLines = accuracy.summary(weapons).map((t) => ag.addText(t));
+ag.addButton('명중률 초기화', () => { accuracy.reset(); refreshAccuracy(); });
 const M = config.monster;
 const mg = settingsPanel.addGroup('몬스터 (T22)', { onToggle: layoutPanels });
 mg.addSlider({ label: '근접형 HP (리셋 후 적용)', min: 500, max: 6000, step: 100, get: () => M.melee.hp, set: (v) => { M.melee.hp = v; } });
@@ -181,7 +198,7 @@ const vg = settingsPanel.addGroup('총기 뷰모델', { open: true, onToggle: la
 const vmLabel = () => `뷰모델: ${viewModel.state.enabled ? '켜짐' : '꺼짐'}`;
 const vmBtn = vg.addButton(vmLabel(), () => { viewModel.setEnabled(!viewModel.state.enabled); vmBtn.textContent = vmLabel(); });
 // T23/T26: 스테이지 리셋 — 몬스터 전부 제거, 존 재무장, 문 전부 닫힘, HP 회복 (플레이어 위치는 그대로)
-const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; };
+const resetZone = () => { stage.reset(); health.reset(); hitsTaken.count = 0; hitsTaken.text.textContent = '받은 공격: 0회'; accuracy.reset(); refreshAccuracy(); };
 settingsPanel.addButton('스테이지 리셋 (M)', resetZone);
 keyboard.onPress('KeyM', resetZone);
 layoutPanels();
@@ -202,7 +219,7 @@ document.addEventListener('pointerlockchange', () => { if (mouseLook.isLocked() 
 
 // 개발 서버에서만: 콘솔 검증용 (빌드에는 포함되지 않음)
 if (import.meta.env.DEV) {
-  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, events: { emit } };
+  window.__debug = { player, movement, view, config, weapons, warnings, showWarnings, loadout, tuning, weaponPanel, patternOverlay, marks, targets, monsters, stage, blocks, health, playerHud, prompt, pauseMenu, weaponCard, sound, settingsPanel, tracers, damageNumbers, hitmarker, viewModel, accuracy, events: { emit } };
 }
 
 startLoop((dt) => {
