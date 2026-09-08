@@ -7,6 +7,10 @@
 
 **https://ieparei-stack.github.io/lootshooter-portfolio/**
 
+[![플레이 영상](https://img.youtube.com/vi/3OdDl2ED1l8/hqdefault.jpg)](https://youtu.be/3OdDl2ED1l8)
+
+▶ **플레이 영상** https://youtu.be/3OdDl2ED1l8 — 사격장에서 세 정을 비교하고 보스까지 한 판.
+
 - 설치·로그인 없이 브라우저에서 바로 실행됩니다 (데스크톱 Chrome / Edge 권장 — 마우스 포인터 잠금이 필요합니다).
 - 런타임에 외부 네트워크를 전혀 호출하지 않습니다.
 
